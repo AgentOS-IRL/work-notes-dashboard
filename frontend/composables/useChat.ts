@@ -43,6 +43,7 @@ export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) =
       return;
     }
 
+    const previousMessages = messages.value;
     const userMessage: ChatMessage = {
       id: nextMessageId,
       role: 'user',
@@ -77,6 +78,9 @@ export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) =
         options.onNotesChanged?.(response.changedNoteIds);
       }
     } catch (error) {
+      messages.value = previousMessages;
+      draft.value = trimmed;
+      nextMessageId -= 1;
       errorMessage.value = error instanceof Error ? error.message : 'Failed to send chat message.';
     } finally {
       isSending.value = false;

@@ -28,7 +28,7 @@ onMounted(loadNotes);
 watch(
   () => props.refreshKey,
   () => {
-    loadNotes();
+    loadNotes({ preserveEditorFields: true });
   }
 );
 </script>

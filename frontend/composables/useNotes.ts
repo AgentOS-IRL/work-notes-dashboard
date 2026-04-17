@@ -27,30 +27,47 @@ export function useNotes() {
   const saving = ref(false);
   const errorMessage = ref('');
   const statusMessage = ref('');
+  const selectedNoteSnapshot = ref<Note | null>(null);
 
   const selectedNote = computed(
     () => notes.value.find((note) => note.id === selectedNoteId.value) ?? null
   );
+  const isEditorDirty = computed(() => {
+    if (selectedNoteSnapshot.value) {
+      return (
+        title.value !== selectedNoteSnapshot.value.title ||
+        content.value !== selectedNoteSnapshot.value.content
+      );
+    }
+
+    return title.value.trim().length > 0 || content.value.trim().length > 0;
+  });
 
   function resetForm() {
     selectedNoteId.value = null;
     title.value = '';
     content.value = '';
+    selectedNoteSnapshot.value = null;
   }
 
   function selectNote(note: Note) {
     selectedNoteId.value = note.id;
     title.value = note.title;
     content.value = note.content;
+    selectedNoteSnapshot.value = note;
   }
 
-  async function loadNotes() {
+  async function loadNotes(options: { preserveEditorFields?: boolean } = {}) {
     loading.value = true;
     errorMessage.value = '';
 
     try {
       const data = await requestJson<NotesResponse>('/api/notes', { method: 'GET' });
       notes.value = data.notes;
+
+      if (options.preserveEditorFields && isEditorDirty.value) {
+        return;
+      }
 
       if (selectedNoteId.value !== null) {
         const nextSelected = data.notes.find((note) => note.id === selectedNoteId.value);
@@ -120,6 +137,7 @@ export function useNotes() {
     notes,
     selectedNoteId,
     selectedNote,
+    isEditorDirty,
     title,
     content,
     loading,

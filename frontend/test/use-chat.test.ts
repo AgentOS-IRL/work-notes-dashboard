@@ -17,7 +17,6 @@ describe('useChat', () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       jsonResponse({
         assistantMessage: {
-          id: 3,
           role: 'assistant',
           content: 'I refined the sprint plan.'
         },
@@ -63,7 +62,7 @@ describe('useChat', () => {
     expect(notesChanged).toHaveBeenCalledWith([1]);
   });
 
-  it('surfaces API failures as an error message', async () => {
+  it('rolls back the optimistic user turn when the request fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(null, { status: 500 })));
 
     const chat = useChat();
@@ -71,7 +70,11 @@ describe('useChat', () => {
     await chat.sendMessage();
 
     expect(chat.errorMessage.value).toBe('Request failed with status 500');
-    expect(chat.messages.value).toHaveLength(2);
+    expect(chat.messages.value).toHaveLength(1);
+    expect(chat.messages.value[0]).toMatchObject({
+      role: 'assistant',
+      content: 'I am connected to the notes backend. Ask me to refine, summarize, or capture ideas.'
+    });
+    expect(chat.draft.value).toBe('Hello');
   });
 });
-

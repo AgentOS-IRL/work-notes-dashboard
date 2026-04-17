@@ -27,7 +27,6 @@ describe('index page', () => {
       .mockResolvedValueOnce(
         jsonResponse({
           assistantMessage: {
-            id: 3,
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },

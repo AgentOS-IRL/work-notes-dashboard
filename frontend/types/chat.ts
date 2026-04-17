@@ -1,9 +1,12 @@
 export type ChatRole = 'assistant' | 'user';
 
-export interface ChatMessage {
-  id: number;
+export interface ChatTurn {
   role: ChatRole;
   content: string;
+}
+
+export interface ChatMessage extends ChatTurn {
+  id: number;
 }
 
 export interface ChatRequest {
@@ -11,7 +14,7 @@ export interface ChatRequest {
 }
 
 export interface ChatResponse {
-  assistantMessage: ChatMessage;
+  assistantMessage: ChatTurn;
   changedNoteIds: number[];
   notesChanged: boolean;
 }

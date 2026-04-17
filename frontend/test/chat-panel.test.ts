@@ -17,7 +17,6 @@ describe('ChatPanel', () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       jsonResponse({
         assistantMessage: {
-          id: 3,
           role: 'assistant',
           content: 'I updated the sprint plan note.'
         },
@@ -49,4 +48,3 @@ describe('ChatPanel', () => {
     expect(wrapper.text()).toContain('Request failed with status 503');
   });
 });
-
