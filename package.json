@@ -11,6 +11,6 @@
     "build:backend": "npm run build -w backend",
     "dev": "npm run build:frontend && npm run dev -w backend",
     "start": "npm run build && npm run start -w backend",
-    "test": "npm run test -w backend"
+    "test": "npm run test -w frontend && npm run test -w backend"
   }
 }
