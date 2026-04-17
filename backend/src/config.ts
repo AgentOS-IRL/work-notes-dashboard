@@ -8,8 +8,8 @@ export function resolveDatabasePath(databasePath = process.env.SQLITE_DB_PATH ??
 
 export interface BedrockConfig {
   region: string;
-  accessKeyId: string;
-  secretAccessKey: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
   sessionToken?: string;
   modelId: string;
 }
@@ -24,17 +24,40 @@ function requireEnv(name: string, value: string | undefined, missing: string[]) 
   return trimmed;
 }
 
+function resolveOptionalAwsCredentials(env: NodeJS.ProcessEnv) {
+  const accessKeyId = env.BEDROCK_AWS_ACCESS_KEY_ID?.trim() || undefined;
+  const secretAccessKey = env.BEDROCK_AWS_SECRET_ACCESS_KEY?.trim() || undefined;
+  const sessionToken = env.BEDROCK_AWS_SESSION_TOKEN?.trim() || undefined;
+
+  if (!accessKeyId && !secretAccessKey && !sessionToken) {
+    return {};
+  }
+
+  const missing: string[] = [];
+  if (!accessKeyId) {
+    missing.push('BEDROCK_AWS_ACCESS_KEY_ID');
+  }
+  if (!secretAccessKey) {
+    missing.push('BEDROCK_AWS_SECRET_ACCESS_KEY');
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `BEDROCK_AWS_SESSION_TOKEN and explicit Bedrock credentials require ${missing.join(', ')}`
+    );
+  }
+
+  return {
+    accessKeyId,
+    secretAccessKey,
+    ...(sessionToken ? { sessionToken } : {})
+  };
+}
+
 export function resolveBedrockConfig(env = process.env): BedrockConfig {
   const missing: string[] = [];
   const region = requireEnv('BEDROCK_AWS_REGION', env.BEDROCK_AWS_REGION, missing);
-  const accessKeyId = requireEnv('BEDROCK_AWS_ACCESS_KEY_ID', env.BEDROCK_AWS_ACCESS_KEY_ID, missing);
-  const secretAccessKey = requireEnv(
-    'BEDROCK_AWS_SECRET_ACCESS_KEY',
-    env.BEDROCK_AWS_SECRET_ACCESS_KEY,
-    missing
-  );
   const modelId = requireEnv('BEDROCK_MODEL_ID', env.BEDROCK_MODEL_ID, missing);
-  const sessionToken = env.BEDROCK_AWS_SESSION_TOKEN?.trim() || undefined;
 
   if (missing.length > 0) {
     throw new Error(`Missing Bedrock configuration: ${missing.join(', ')}`);
@@ -42,9 +65,7 @@ export function resolveBedrockConfig(env = process.env): BedrockConfig {
 
   return {
     region,
-    accessKeyId,
-    secretAccessKey,
-    sessionToken,
-    modelId
+    modelId,
+    ...resolveOptionalAwsCredentials(env)
   };
 }

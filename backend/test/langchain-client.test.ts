@@ -10,6 +10,18 @@ import { resolveBedrockConfig } from '../src/config';
 test('resolveBedrockConfig reads Bedrock configuration from environment', () => {
   const config = resolveBedrockConfig({
     BEDROCK_AWS_REGION: 'us-west-2',
+    BEDROCK_MODEL_ID: 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+  } as NodeJS.ProcessEnv);
+
+  assert.deepEqual(config, {
+    region: 'us-west-2',
+    modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+  });
+});
+
+test('resolveBedrockConfig supports explicit AWS credentials when provided', () => {
+  const config = resolveBedrockConfig({
+    BEDROCK_AWS_REGION: 'us-west-2',
     BEDROCK_AWS_ACCESS_KEY_ID: 'access',
     BEDROCK_AWS_SECRET_ACCESS_KEY: 'secret',
     BEDROCK_AWS_SESSION_TOKEN: 'session',
@@ -25,7 +37,7 @@ test('resolveBedrockConfig reads Bedrock configuration from environment', () => 
   });
 });
 
-test('resolveBedrockConfig fails fast when configuration is missing', () => {
+test('resolveBedrockConfig fails fast when required configuration is missing', () => {
   assert.throws(
     () =>
       resolveBedrockConfig({
@@ -54,13 +66,32 @@ test('createBedrockChatModel passes configuration through to ChatBedrockConverse
     }
   });
 
+  const noCredentialOptions = toBedrockChatModelOptions({
+    region: 'us-east-1',
+    modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+  });
+
+  assert.deepEqual(noCredentialOptions, {
+    model: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    region: 'us-east-1'
+  });
+
   const model = createBedrockChatModel({
     region: 'us-east-1',
-    accessKeyId: 'access',
-    secretAccessKey: 'secret',
-    sessionToken: 'session',
     modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0'
   });
 
   assert.equal(model.constructor.name, 'ChatBedrockConverse');
+});
+
+test('toBedrockChatModelOptions rejects partial explicit credentials', () => {
+  assert.throws(
+    () =>
+      toBedrockChatModelOptions({
+        region: 'us-east-1',
+        accessKeyId: 'access',
+        modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+      }),
+    /BEDROCK_AWS_ACCESS_KEY_ID and BEDROCK_AWS_SECRET_ACCESS_KEY/
+  );
 });
