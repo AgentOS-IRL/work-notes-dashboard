@@ -15,3 +15,4 @@ plan/
 **/.nuxt/**
 **/.output/**
 frontend/dist
+backend/data/notes.sqlite

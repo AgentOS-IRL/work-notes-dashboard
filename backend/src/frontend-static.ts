@@ -54,7 +54,7 @@ export function ensureFrontendDistPathExists(frontendDistPath = resolveFrontendD
 }
 
 export function sendSPAIndex(res: Response, frontendDistPath: string) {
-  res.sendFile(assertFrontendIndexExists(frontendDistPath));
+  res.sendFile(assertFrontendIndexExists(frontendDistPath), { dotfiles: 'allow' });
 }
 
 function normalizeBasePath(basePath: string) {
@@ -74,7 +74,7 @@ export function configureFrontendStatic(
   const mountBase = normalizeBasePath(basePath);
   const router = express.Router();
 
-  router.use(express.static(frontendDistPath, { index: false }));
+  router.use(express.static(frontendDistPath, { index: false, dotfiles: 'allow' }));
   const serveSPAIndexIfNeeded = (req: express.Request, res: Response) => {
     if (path.extname(req.path)) {
       res.sendStatus(404);
