@@ -2,7 +2,10 @@ import { tool } from '@langchain/core/tools';
 import * as z from 'zod';
 import { NotFoundError, type Note, type NotesRepository } from '../notes-repository';
 
-type NoteToolRepository = Pick<NotesRepository, 'createNote' | 'getNoteById' | 'updateNote'>;
+type NoteToolRepository = Pick<
+  NotesRepository,
+  'createNote' | 'getNoteById' | 'listNotes' | 'updateNote'
+>;
 
 const noteIdSchema = z.object({
   id: z.number().int().positive().describe('The note id.')
@@ -45,6 +48,17 @@ export function createNoteTools(repository: NoteToolRepository) {
     }
   );
 
+  const listNotesTool = tool(
+    async () => {
+      return { notes: repository.listNotes() };
+    },
+    {
+      name: 'list_notes',
+      description: 'List the existing notes in the SQLite-backed notes store.',
+      schema: z.object({})
+    }
+  );
+
   const updateNoteTool = tool(
     async ({ id, title, content }) => {
       const note = repository.updateNote(id, { title, content });
@@ -60,6 +74,7 @@ export function createNoteTools(repository: NoteToolRepository) {
   return {
     createNoteTool,
     getNoteTool,
+    listNotesTool,
     updateNoteTool
   };
 }
