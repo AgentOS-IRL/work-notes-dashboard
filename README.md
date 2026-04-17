@@ -24,6 +24,7 @@ Minimal monorepo with:
 - `PORT` controls the backend port
 - `FRONTEND_BUILD_DIR` overrides the frontend dist directory
 - `FRONTEND_BASE_PATH` lets the backend mount the frontend under a subpath
+- `NUXT_APP_BASE_URL` sets the Nuxt asset/app base path at build time; it should match `FRONTEND_BASE_PATH`
 
 ## Serving model
 
