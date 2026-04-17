@@ -27,6 +27,10 @@ Minimal monorepo with:
 - `FRONTEND_BUILD_DIR` overrides the frontend dist directory
 - `FRONTEND_BASE_PATH` lets the backend mount the frontend under a subpath
 - `SQLITE_DB_PATH` overrides the SQLite database file path
+- `BEDROCK_AWS_REGION` sets the AWS region for the LangChain Bedrock client
+- `BEDROCK_AWS_ACCESS_KEY_ID` and `BEDROCK_AWS_SECRET_ACCESS_KEY` optionally override the AWS default credential chain
+- `BEDROCK_AWS_SESSION_TOKEN` optionally sets a temporary session token when using explicit credentials
+- `BEDROCK_MODEL_ID` selects the Bedrock model used by the LangChain client
 
 ## Notes API
 
@@ -35,6 +39,16 @@ Minimal monorepo with:
 - `POST /api/notes` creates a note with `{ "title": "...", "content": "..." }`
 - `PUT /api/notes/:id` updates a note with `{ "title": "...", "content": "..." }`
 - `DELETE /api/notes/:id` deletes a note
+
+## LangChain Notes Tools
+
+The backend exposes LangChain tools that wrap the existing SQLite repository:
+
+- `create_note` creates a note with `{ "title": "...", "content": "..." }`
+- `get_note` reads a note by `{ "id": 123 }`
+- `update_note` updates a note with `{ "id": 123, "title": "...", "content": "..." }`
+
+These tools reuse the same repository implementation as the HTTP API. They are backend-side utilities and do not add a second persistence layer.
 
 ## Serving model
 

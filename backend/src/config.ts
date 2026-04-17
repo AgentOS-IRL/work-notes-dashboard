@@ -5,3 +5,67 @@ export const defaultDatabasePath = path.resolve(process.cwd(), 'data', 'notes.sq
 export function resolveDatabasePath(databasePath = process.env.SQLITE_DB_PATH ?? defaultDatabasePath) {
   return path.resolve(databasePath);
 }
+
+export interface BedrockConfig {
+  region: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  sessionToken?: string;
+  modelId: string;
+}
+
+function requireEnv(name: string, value: string | undefined, missing: string[]) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    missing.push(name);
+    return '';
+  }
+
+  return trimmed;
+}
+
+function resolveOptionalAwsCredentials(env: NodeJS.ProcessEnv) {
+  const accessKeyId = env.BEDROCK_AWS_ACCESS_KEY_ID?.trim() || undefined;
+  const secretAccessKey = env.BEDROCK_AWS_SECRET_ACCESS_KEY?.trim() || undefined;
+  const sessionToken = env.BEDROCK_AWS_SESSION_TOKEN?.trim() || undefined;
+
+  if (!accessKeyId && !secretAccessKey && !sessionToken) {
+    return {};
+  }
+
+  const missing: string[] = [];
+  if (!accessKeyId) {
+    missing.push('BEDROCK_AWS_ACCESS_KEY_ID');
+  }
+  if (!secretAccessKey) {
+    missing.push('BEDROCK_AWS_SECRET_ACCESS_KEY');
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `BEDROCK_AWS_SESSION_TOKEN and explicit Bedrock credentials require ${missing.join(', ')}`
+    );
+  }
+
+  return {
+    accessKeyId,
+    secretAccessKey,
+    ...(sessionToken ? { sessionToken } : {})
+  };
+}
+
+export function resolveBedrockConfig(env = process.env): BedrockConfig {
+  const missing: string[] = [];
+  const region = requireEnv('BEDROCK_AWS_REGION', env.BEDROCK_AWS_REGION, missing);
+  const modelId = requireEnv('BEDROCK_MODEL_ID', env.BEDROCK_MODEL_ID, missing);
+
+  if (missing.length > 0) {
+    throw new Error(`Missing Bedrock configuration: ${missing.join(', ')}`);
+  }
+
+  return {
+    region,
+    modelId,
+    ...resolveOptionalAwsCredentials(env)
+  };
+}
