@@ -37,6 +37,18 @@ test('ensureFrontendDistPathExists throws a clear error when the dist directory 
   );
 });
 
+test('ensureFrontendDistPathExists throws a clear error when index.html is missing', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-empty-dist-'));
+  const distDir = path.join(tempRoot, 'public');
+
+  fs.mkdirSync(distDir, { recursive: true });
+
+  assert.throws(
+    () => ensureFrontendDistPathExists(distDir),
+    /missing index\.html/
+  );
+});
+
 test('configureFrontendStatic serves index.html for SPA routes', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-static-'));
   const distDir = path.join(tempRoot, 'public');

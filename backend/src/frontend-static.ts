@@ -19,6 +19,22 @@ export function resolveFrontendDistPath(options: {
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates[0];
 }
 
+function getFrontendIndexPath(frontendDistPath: string) {
+  return path.join(frontendDistPath, 'index.html');
+}
+
+function assertFrontendIndexExists(frontendDistPath: string) {
+  const frontendIndexPath = getFrontendIndexPath(frontendDistPath);
+
+  if (!fs.existsSync(frontendIndexPath)) {
+    throw new Error(
+      `Frontend build output not found at ${frontendDistPath} (missing index.html). Run "npm run build:frontend" or set FRONTEND_BUILD_DIR.`
+    );
+  }
+
+  return frontendIndexPath;
+}
+
 export function ensureFrontendDistPathExists(frontendDistPath = resolveFrontendDistPath()) {
   if (!fs.existsSync(frontendDistPath)) {
     throw new Error(
@@ -32,11 +48,13 @@ export function ensureFrontendDistPathExists(frontendDistPath = resolveFrontendD
     );
   }
 
+  assertFrontendIndexExists(frontendDistPath);
+
   return frontendDistPath;
 }
 
 export function sendSPAIndex(res: Response, frontendDistPath: string) {
-  res.sendFile(path.join(frontendDistPath, 'index.html'));
+  res.sendFile(assertFrontendIndexExists(frontendDistPath));
 }
 
 function normalizeBasePath(basePath: string) {
