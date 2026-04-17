@@ -1,3 +1,14 @@
+node_modules/
+dist/
+frontend/dist
+.output/
+.nuxt/
+.cache/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
 plan/
 **/node_modules/**
 **/dist/**

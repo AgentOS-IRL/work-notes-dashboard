@@ -1,0 +1,16 @@
+{
+  "name": "work-notes-dashboard",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "build": "npm run build -w frontend && npm run build -w backend",
+    "build:frontend": "npm run build -w frontend",
+    "build:backend": "npm run build -w backend",
+    "dev": "npm run build:frontend && npm run dev -w backend",
+    "start": "npm run build && npm run start -w backend",
+    "test": "npm run test -w backend"
+  }
+}
