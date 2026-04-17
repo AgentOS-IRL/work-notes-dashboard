@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import ChatPanel from '~/components/chat/ChatPanel.vue';
 import NotesPanel from '~/components/notes/NotesPanel.vue';
+
+const notesRefreshKey = ref(0);
+
+function handleNotesChanged() {
+  notesRefreshKey.value += 1;
+}
 </script>
 
 <template>
@@ -12,19 +19,19 @@ import NotesPanel from '~/components/notes/NotesPanel.vue';
           <p class="eyebrow">Work Notes Dashboard</p>
           <h1>Split the conversation from the record.</h1>
           <p class="subtitle">
-            Keep chat on the left as a local workspace and manage notes on the right through the
-            existing API.
+            Keep chat on the left connected to LangChain Converse while the notes panel on the
+            right stays backed by the existing API.
           </p>
         </div>
         <div class="hero-badges" aria-label="Workspace summary">
-          <span>Chat: local only</span>
+          <span>Chat: LangChain Converse</span>
           <span>Notes: backed by /api/notes</span>
         </div>
       </header>
 
       <div class="dashboard">
-        <ChatPanel />
-        <NotesPanel />
+        <ChatPanel @notes-changed="handleNotesChanged" />
+        <NotesPanel :refresh-key="notesRefreshKey" />
       </div>
     </section>
   </main>

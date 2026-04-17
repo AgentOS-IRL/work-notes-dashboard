@@ -1,63 +1,23 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { useChat } from '~/composables/useChat';
 
-type ChatRole = 'assistant' | 'user';
+const emit = defineEmits<{
+  (event: 'notes-changed', changedNoteIds: number[]): void;
+}>();
 
-interface ChatMessage {
-  id: number;
-  role: ChatRole;
-  content: string;
-}
-
-const seedMessages: ChatMessage[] = [
-  {
-    id: 1,
-    role: 'assistant',
-    content: 'Local chat is ready. It is not connected to notes or any backend yet.'
-  },
-  {
-    id: 2,
-    role: 'user',
-    content: 'I need a concise summary of today’s priorities.'
-  },
-  {
-    id: 3,
-    role: 'assistant',
-    content: 'Use the notes pane on the right to capture actions, decisions, and follow-ups.'
+const {
+  messages,
+  draft,
+  isSending,
+  errorMessage,
+  hasMessages,
+  addSuggestion,
+  sendMessage
+} = useChat({
+  onNotesChanged(changedNoteIds) {
+    emit('notes-changed', changedNoteIds);
   }
-];
-
-const messages = ref<ChatMessage[]>(seedMessages);
-const draft = ref('');
-const isSending = ref(false);
-
-const hasConversation = computed(() => messages.value.length > 0);
-
-function addSuggestion(text: string) {
-  draft.value = text;
-}
-
-async function sendMessage() {
-  const trimmed = draft.value.trim();
-  if (!trimmed || isSending.value) {
-    return;
-  }
-
-  isSending.value = true;
-  const nextId = messages.value.length + 1;
-  messages.value = [
-    ...messages.value,
-    { id: nextId, role: 'user', content: trimmed },
-    {
-      id: nextId + 1,
-      role: 'assistant',
-      content: 'This chat stays local for now. Notes remain isolated in the right pane.'
-    }
-  ];
-  draft.value = '';
-  await nextTick();
-  isSending.value = false;
-}
+});
 </script>
 
 <template>
@@ -65,18 +25,21 @@ async function sendMessage() {
     <header class="panel-header">
       <div>
         <p class="eyebrow">Chat workspace</p>
-        <h2>Talk things out locally.</h2>
+        <h2>Talk things out with the notes model.</h2>
       </div>
-      <span class="status-pill">Local only</span>
+      <span class="status-pill">Connected</span>
     </header>
 
     <div class="chat-frame">
       <div class="chat-meta">
         <p class="meta-title">Conversation</p>
         <p class="meta-copy">
-          A polished shell for chat is here, but it does not call any model or backend yet.
+          Messages go to the backend, which can inspect notes and update them with LangChain
+          tool calls.
         </p>
       </div>
+
+      <p v-if="errorMessage" class="message error-banner">{{ errorMessage }}</p>
 
       <div class="message-stream" aria-live="polite">
         <article
@@ -109,16 +72,22 @@ async function sendMessage() {
             id="chat-draft"
             v-model="draft"
             rows="4"
-            placeholder="Write a message. It stays local to this panel."
+            placeholder="Ask the assistant to improve or capture notes."
           />
         </label>
 
         <div class="composer-actions">
           <p class="composer-hint">
-            {{ hasConversation ? 'Conversation state is stored in this component only.' : 'Start a local conversation.' }}
+            {{
+              isSending
+                ? 'Sending message to the LLM...'
+                : hasMessages
+                  ? 'Conversation history is maintained locally and sent with each turn.'
+                  : 'Start a conversation.'
+            }}
           </p>
           <button class="send-button" type="submit" :disabled="isSending || draft.trim().length === 0">
-            Send
+            {{ isSending ? 'Sending...' : 'Send' }}
           </button>
         </div>
       </form>
@@ -219,6 +188,14 @@ h2 {
   color: #fff;
   justify-self: end;
   border-color: transparent;
+}
+
+.error-banner {
+  max-width: 100%;
+  margin: 0;
+  background: color-mix(in srgb, #dc2626 10%, var(--surface));
+  border-color: color-mix(in srgb, #dc2626 30%, var(--border));
+  color: #991b1b;
 }
 
 .message-label {

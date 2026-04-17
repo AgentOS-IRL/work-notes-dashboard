@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useNotes } from '~/composables/useNotes';
+
+const props = defineProps<{
+  refreshKey: number;
+}>();
 
 const {
   notes,
@@ -20,6 +24,13 @@ const {
 } = useNotes();
 
 onMounted(loadNotes);
+
+watch(
+  () => props.refreshKey,
+  () => {
+    loadNotes({ preserveEditorFields: true });
+  }
+);
 </script>
 
 <template>

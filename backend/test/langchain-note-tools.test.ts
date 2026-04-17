@@ -40,6 +40,17 @@ test('LangChain note tools create, get, and update notes', async () => {
       }
     });
 
+    const listed = await tools.listNotesTool.invoke({});
+    assert.deepEqual(listed, {
+      notes: [
+        {
+          id: 1,
+          title: 'Sprint plan',
+          content: 'Initial body'
+        }
+      ]
+    });
+
     const updated = await tools.updateNoteTool.invoke({
       id: 1,
       title: 'Sprint plan v2',
@@ -75,6 +86,9 @@ test('getNoteTool surfaces not found errors from the repository layer', async ()
     },
     updateNote() {
       throw new Error('not used');
+    },
+    listNotes() {
+      throw new Error('not used');
     }
   });
 
@@ -95,6 +109,9 @@ test('LangChain note tools reject invalid input before repository access', async
       throw new Error('not used');
     },
     updateNote() {
+      throw new Error('not used');
+    },
+    listNotes() {
       throw new Error('not used');
     }
   });

@@ -4,12 +4,13 @@ Minimal monorepo with:
 - a Nuxt frontend in `frontend/`
 - an Express backend in `backend/`
 - static frontend serving from the backend
+- LangChain Converse-powered chat that can inspect and update notes
 - SQLite persistence for notes
 
 ## Layout
 
 - `frontend/` generates a static site into `.output/public`
-- `backend/` serves that generated output, exposes `/api/notes`, and falls back to `index.html`
+- `backend/` serves that generated output, exposes `/api/notes` and `/api/chat`, and falls back to `index.html`
 - `backend/data/notes.sqlite` is the default SQLite file path
 
 ## Commands
@@ -32,6 +33,30 @@ Minimal monorepo with:
 - `BEDROCK_AWS_SESSION_TOKEN` optionally sets a temporary session token when using explicit credentials
 - `BEDROCK_MODEL_ID` selects the Bedrock model used by the LangChain client
 
+## Chat API
+
+`POST /api/chat` accepts a conversation history:
+
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Refine the sprint plan." }
+  ]
+}
+```
+
+It returns the assistant reply plus note-change metadata:
+
+```json
+{
+  "assistantMessage": { "role": "assistant", "content": "I updated the sprint plan note." },
+  "changedNoteIds": [1],
+  "notesChanged": true
+}
+```
+
+The backend uses Bedrock Converse through LangChain and can call note tools while composing a reply. When the model changes notes, the frontend refreshes the notes workspace.
+
 ## Notes API
 
 - `GET /api/notes` lists notes
@@ -46,6 +71,7 @@ The backend exposes LangChain tools that wrap the existing SQLite repository:
 
 - `create_note` creates a note with `{ "title": "...", "content": "..." }`
 - `get_note` reads a note by `{ "id": 123 }`
+- `list_notes` lists all notes for discovery and update selection
 - `update_note` updates a note with `{ "id": 123, "title": "...", "content": "..." }`
 
 These tools reuse the same repository implementation as the HTTP API. They are backend-side utilities and do not add a second persistence layer.

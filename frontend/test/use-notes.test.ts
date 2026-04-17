@@ -37,6 +37,43 @@ describe('useNotes', () => {
     expect(notes.content.value).toBe('First entry');
   });
 
+  it('preserves a dirty editor when refreshes come from chat updates', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          notes: [
+            { id: 1, title: 'Sprint plan', content: 'Initial body' },
+            { id: 2, title: 'Retro', content: 'Second entry' }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          notes: [
+            { id: 1, title: 'Sprint plan updated', content: 'Initial body' },
+            { id: 2, title: 'Retro', content: 'Second entry' }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const notes = useNotes();
+    await notes.loadNotes();
+
+    notes.title.value = 'Local draft';
+    notes.content.value = 'Unsaved body';
+
+    await notes.loadNotes({ preserveEditorFields: true });
+
+    expect(notes.notes.value[0].title).toBe('Sprint plan updated');
+    expect(notes.title.value).toBe('Local draft');
+    expect(notes.content.value).toBe('Unsaved body');
+    expect(notes.selectedNoteId.value).toBe(1);
+    expect(notes.isEditorDirty.value).toBe(true);
+  });
+
   it('creates, updates, and deletes notes through the same API contract', async () => {
     const fetchMock = vi
       .fn()
