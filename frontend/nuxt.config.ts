@@ -8,7 +8,7 @@ export default defineNuxtConfig({
       title: 'Work Notes Dashboard',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'A simple Nuxt landing screen served by Express.' }
+        { name: 'description', content: 'A Nuxt notes UI backed by an Express and SQLite API.' }
       ]
     }
   }
