@@ -92,6 +92,13 @@ test('notes API supports create, list, read, update, delete, and validation', as
         content: 'Body'
       })
       .expect(400);
+
+    await request(server.app)
+      .get('/api/notes/1/history')
+      .expect(404)
+      .expect((response) => {
+        assert.deepEqual(response.body, { error: 'Not found.' });
+      });
   } finally {
     server.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });

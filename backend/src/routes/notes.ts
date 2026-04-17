@@ -88,5 +88,9 @@ export function createNotesRouter(repository: NotesRepository) {
     }
   });
 
+  router.use((_, res) => {
+    res.status(404).json({ error: 'Not found.' });
+  });
+
   return router;
 }
