@@ -56,3 +56,19 @@ test('configureFrontendStatic serves index.html for SPA routes', async () => {
       assert.match(response.text, /index/);
     });
 });
+
+test('configureFrontendStatic does not serve index.html for non-GET/HEAD requests', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-static-methods-'));
+  const distDir = path.join(tempRoot, 'public');
+  const indexFile = path.join(distDir, 'index.html');
+
+  fs.mkdirSync(distDir, { recursive: true });
+  fs.writeFileSync(indexFile, '<!doctype html><html><body>index</body></html>');
+
+  const app = express();
+  configureFrontendStatic(app, '/', distDir);
+
+  await request(app)
+    .post('/notes/123')
+    .expect(404);
+});

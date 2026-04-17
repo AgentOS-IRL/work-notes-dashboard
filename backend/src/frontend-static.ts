@@ -57,13 +57,20 @@ export function configureFrontendStatic(
   const router = express.Router();
 
   router.use(express.static(frontendDistPath, { index: false }));
-  router.use((req, res) => {
+  const serveSPAIndexIfNeeded = (req: express.Request, res: Response) => {
     if (path.extname(req.path)) {
       res.sendStatus(404);
       return;
     }
 
     sendSPAIndex(res, frontendDistPath);
+  };
+
+  router.get(/.*/, serveSPAIndexIfNeeded);
+  router.head(/.*/, serveSPAIndexIfNeeded);
+
+  router.use((req, res) => {
+    res.sendStatus(404);
   });
 
   app.use(mountBase, router);
