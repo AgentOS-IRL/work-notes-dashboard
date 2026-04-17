@@ -4,12 +4,17 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt generate",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "nuxt": "^3.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "@vitejs/plugin-vue": "^5.0.0",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^24.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.1.0"
   }
 }
