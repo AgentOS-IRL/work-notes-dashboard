@@ -5,17 +5,17 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
-  DEFAULT_CODING_TOOL_AGENT,
-  DEFAULT_LANGCHAIN_MODEL_ID,
+  DEFAULT_CODEX_BASE_URL,
+  DEFAULT_CODEX_MODEL_NAME,
+  DEFAULT_CODEX_TIMEOUT,
   getCodexApiKey,
   getCodexAuthPath,
   getCodexCredentials,
-  getCodingToolAgent,
-  getLangchainModelId,
-  resetCodexCredentialsCache
-} from '../../src/config/openai';
+  resetCodexCredentialsCache,
+  resolveCodexConfig
+} from '../../src/config/codex';
 
-const ENV_KEYS = ['CODING_TOOL_AGENT', 'LANGCHAIN_MODEL_ID', 'CODEX_AUTH_PATH'] as const;
+const ENV_KEYS = ['CODEX_ACCESS_TOKEN', 'CODEX_ACCOUNT_ID', 'CODEX_MODEL_NAME', 'CODEX_BASE_URL', 'CODEX_TIMEOUT', 'CODEX_AUTH_PATH'] as const;
 
 function snapshotEnv() {
   return Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
@@ -71,35 +71,52 @@ function withPatchedHomedir<T>(homedir: string, fn: () => T) {
   }
 }
 
-test('openai config helpers return defaults when env is unset', () => {
+test('resolveCodexConfig returns defaults when env is unset', () => {
   withEnv(
     {
-      CODING_TOOL_AGENT: undefined,
-      LANGCHAIN_MODEL_ID: undefined,
+      CODEX_ACCESS_TOKEN: undefined,
+      CODEX_ACCOUNT_ID: undefined,
+      CODEX_MODEL_NAME: undefined,
+      CODEX_BASE_URL: undefined,
+      CODEX_TIMEOUT: undefined,
       CODEX_AUTH_PATH: undefined
     },
     () => {
-      assert.equal(getCodingToolAgent(), DEFAULT_CODING_TOOL_AGENT);
-      assert.equal(getLangchainModelId(), DEFAULT_LANGCHAIN_MODEL_ID);
-      assert.equal(
-        getCodexAuthPath(),
-        path.join(os.homedir(), '.codex', 'auth.json')
-      );
+      const config = resolveCodexConfig();
+
+      assert.deepEqual(config, {
+        authPath: path.join(os.homedir(), '.codex', 'auth.json'),
+        accessToken: undefined,
+        accountId: undefined,
+        modelName: DEFAULT_CODEX_MODEL_NAME,
+        baseUrl: DEFAULT_CODEX_BASE_URL,
+        timeout: DEFAULT_CODEX_TIMEOUT
+      });
     }
   );
 });
 
-test('openai config helpers honor explicit env overrides', () => {
+test('resolveCodexConfig trims explicit env overrides', () => {
   withEnv(
     {
-      CODING_TOOL_AGENT: '  agent-x  ',
-      LANGCHAIN_MODEL_ID: '  model-x  ',
+      CODEX_ACCESS_TOKEN: '  token-123  ',
+      CODEX_ACCOUNT_ID: '  account-456  ',
+      CODEX_MODEL_NAME: '  model-x  ',
+      CODEX_BASE_URL: '  https://example.com/codex  ',
+      CODEX_TIMEOUT: '  30000  ',
       CODEX_AUTH_PATH: '  /tmp/custom-auth.json  '
     },
     () => {
-      assert.equal(getCodingToolAgent(), 'agent-x');
-      assert.equal(getLangchainModelId(), 'model-x');
-      assert.equal(getCodexAuthPath(), path.resolve('/tmp/custom-auth.json'));
+      const config = resolveCodexConfig();
+
+      assert.deepEqual(config, {
+        authPath: path.resolve('/tmp/custom-auth.json'),
+        accessToken: 'token-123',
+        accountId: 'account-456',
+        modelName: 'model-x',
+        baseUrl: 'https://example.com/codex',
+        timeout: 30000
+      });
     }
   );
 });
@@ -111,8 +128,11 @@ test('getCodexAuthPath expands ~ prefixes against the current home directory', (
     withEnv(
       {
         CODEX_AUTH_PATH: '~/nested/auth.json',
-        CODING_TOOL_AGENT: undefined,
-        LANGCHAIN_MODEL_ID: undefined
+        CODEX_ACCESS_TOKEN: undefined,
+        CODEX_ACCOUNT_ID: undefined,
+        CODEX_MODEL_NAME: undefined,
+        CODEX_BASE_URL: undefined,
+        CODEX_TIMEOUT: undefined
       },
       () => {
         assert.equal(getCodexAuthPath(), path.join(tempHome, 'nested', 'auth.json'));
@@ -216,4 +236,3 @@ test('getCodexCredentials rejects auth files that only expose tokens.access_toke
 
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
-

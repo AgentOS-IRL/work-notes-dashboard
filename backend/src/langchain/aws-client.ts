@@ -32,7 +32,3 @@ export function toBedrockChatModelOptions(config: BedrockConfig) {
 export function createBedrockChatModel(config: BedrockConfig = resolveBedrockConfig()) {
   return new ChatBedrockConverse(toBedrockChatModelOptions(config));
 }
-
-export function createDefaultBedrockChatModel() {
-  return createBedrockChatModel(resolveBedrockConfig());
-}
