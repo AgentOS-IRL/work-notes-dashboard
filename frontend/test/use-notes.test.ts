@@ -62,7 +62,7 @@ describe('useNotes', () => {
     expect(notes.selectedNote.value?.title).toBe('Follow-up');
   });
 
-  it('refreshes notes and focuses the first matching note id after reload', async () => {
+  it('refreshes notes and focuses the newest matching note id after reload', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -90,7 +90,7 @@ describe('useNotes', () => {
     await notes.loadNotes();
 
     notes.selectNoteById(1);
-    await notes.loadNotes({ focusNoteIds: [99, 3, 2] });
+    await notes.loadNotes({ focusNoteIds: [1, 3] });
 
     expect(notes.notes.value[2]).toEqual({
       id: 3,

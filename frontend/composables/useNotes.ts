@@ -112,9 +112,10 @@ export function useNotes() {
         return;
       }
 
-      const focusNoteId = options.focusNoteIds?.find((noteId) =>
-        data.notes.some((note) => note.id === noteId)
-      );
+      const focusNoteId = options.focusNoteIds
+        ?.slice()
+        .reverse()
+        .find((noteId) => data.notes.some((note) => note.id === noteId));
 
       if (focusNoteId !== undefined) {
         const focusedNote = data.notes.find((note) => note.id === focusNoteId);
