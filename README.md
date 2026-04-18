@@ -85,11 +85,13 @@ The backend uses Bedrock Converse through LangChain and can call note tools whil
 The backend exposes LangChain tools that wrap the existing SQLite repository:
 
 - `create_note` creates a note with `{ "title": "...", "content": "..." }`
-- `get_note` reads a note by `{ "id": 123 }`
-- `list_notes` lists note ids and titles for discovery and update selection
+- `list_notes` is discovery-only: it lists note ids and titles for selecting candidates to inspect or update
 - `list_notes` returns `{ "notes": [{ "id": 123, "title": "..." }] }` instead of full note objects
 - `list_notes` defaults to `{ "limit": 10, "offset": 0 }`
 - `list_notes` accepts paging arguments like `{ "limit": 10, "offset": 20 }` to fetch later pages of note ids and titles
+- `read_note` reads the full note object by `{ "id": 123 }` for model-side inspection when content or metadata are actually needed
+- `open_note` opens the full note object by `{ "id": 123 }` for the user-facing "show this note" action
+- `get_note` remains a backward-compatible alias for `read_note`
 - `update_note` updates a note with `{ "id": 123, "title": "...", "content": "..." }`
 
 These tools reuse the same repository implementation as the HTTP API. They are backend-side utilities and do not add a second persistence layer.

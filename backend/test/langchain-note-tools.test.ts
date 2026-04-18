@@ -8,7 +8,7 @@ import { initializeSqliteDatabase, openSqliteDatabase } from '../src/db/sqlite';
 import { createNoteTools } from '../src/langchain';
 import { NotesRepository, type Note, NotFoundError } from '../src/notes-repository';
 
-test('LangChain note tools create, get, open, list, and update notes', async () => {
+test('LangChain note tools create, read, open, list, and update notes', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-tools-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -41,8 +41,8 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
       }
     });
 
-    const fetched = await tools.getNoteTool.invoke({ id: 1 });
-    assert.deepEqual(fetched, {
+    const read = await tools.readNoteTool.invoke({ id: 1 });
+    assert.deepEqual(read, {
       note: {
         id: 1,
         title: 'Sprint plan',
@@ -54,8 +54,11 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
       }
     });
 
+    const fetched = await tools.getNoteTool.invoke({ id: 1 });
+    assert.deepEqual(fetched, read);
+
     const opened = await tools.openNoteTool.invoke({ id: 1 });
-    assert.deepEqual(opened, fetched);
+    assert.deepEqual(opened, read);
 
     const listed = await tools.listNotesTool.invoke({});
     assert.deepEqual(listed, {

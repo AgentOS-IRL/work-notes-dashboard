@@ -48,6 +48,7 @@ const NOTE_TOOL_NAMES = new Set([
   'get_note',
   'list_notes',
   'open_note',
+  'read_note',
   'update_note'
 ]);
 
@@ -55,6 +56,8 @@ const SYSTEM_INSTRUCTION = [
   'You are a work notes assistant inside a split-view dashboard.',
   'Your job is to improve the notes collection as the conversation continues.',
   'Use the available tools to inspect existing notes before creating duplicates.',
+  'Prefer list_notes to find candidate notes, then use read_note only when you actually need note content or metadata, especially before the first update in a session.',
+  'Use open_note when the user explicitly wants a note shown in the UI.',
   'Prefer creating or updating notes with tool calls instead of inventing a separate persistence path.',
   'When the user asks for a note draft, summary, refinement, or follow-up, turn that into a note change when appropriate.',
   'After changing a note, briefly tell the user what you changed.'
@@ -119,14 +122,14 @@ function collectUpdatedNoteIds(toolName: string, result: ToolResult) {
 }
 
 function collectOpenedNoteIds(toolName: string, result: ToolResult) {
-  if (toolName === 'get_note' || toolName === 'open_note') {
+  if (toolName === 'open_note') {
     return result.note ? [result.note.id] : [];
   }
 
   return [];
 }
 
-function isNoteToolName(toolName: string): toolName is 'create_note' | 'get_note' | 'list_notes' | 'open_note' | 'update_note' {
+function isNoteToolName(toolName: string): toolName is 'create_note' | 'get_note' | 'list_notes' | 'open_note' | 'read_note' | 'update_note' {
   return NOTE_TOOL_NAMES.has(toolName);
 }
 
@@ -140,6 +143,8 @@ async function invokeTool(
       return tools.createNoteTool.invoke(toolArgs as never);
     case 'get_note':
       return tools.getNoteTool.invoke(toolArgs as never);
+    case 'read_note':
+      return tools.readNoteTool.invoke(toolArgs as never);
     case 'list_notes':
       return tools.listNotesTool.invoke(toolArgs as never);
     case 'open_note':
@@ -164,7 +169,7 @@ export function createConversationService(options: {
       });
       const modelWithTools = model.bindTools([
         tools.createNoteTool,
-        tools.getNoteTool,
+        tools.readNoteTool,
         tools.openNoteTool,
         tools.listNotesTool,
         tools.updateNoteTool
