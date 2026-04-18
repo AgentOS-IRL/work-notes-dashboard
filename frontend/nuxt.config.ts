@@ -1,3 +1,5 @@
+import { defineNuxtConfig } from 'nuxt/config';
+
 export default defineNuxtConfig({
   ssr: false,
   typescript: {
@@ -6,6 +8,9 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Work Notes Dashboard',
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }
+      ],
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'description', content: 'A Nuxt notes UI backed by an Express and SQLite API.' }
