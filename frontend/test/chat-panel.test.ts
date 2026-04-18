@@ -298,12 +298,14 @@ describe('ChatPanel', () => {
             {
               id: 1,
               role: 'user',
-              content: 'Draft a weekly update.'
+              content: 'Draft a weekly update.',
+              toolCalls: []
             },
             {
               id: 2,
               role: 'assistant',
-              content: 'Here is a draft.'
+              content: 'Here is a draft.',
+              toolCalls: []
             }
           ]
         })
