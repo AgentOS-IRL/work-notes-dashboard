@@ -48,6 +48,7 @@ describe('ChatPanel', () => {
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
+          toolCalls: [],
           createdNoteIds: [1],
           updatedNoteIds: [1],
           changedNoteIds: [1],
@@ -106,6 +107,7 @@ describe('ChatPanel', () => {
     expect(wrapper.findAll('.message')).toHaveLength(2);
     expect(wrapper.find('.message.user').text()).toContain('Refine the sprint plan.');
     expect(wrapper.find('.message.assistant').text()).toContain('I updated the sprint plan note.');
+    expect(wrapper.find('.tool-call-list').exists()).toBe(false);
     expect(wrapper.emitted('notes-activity')).toEqual([
       [
         {
@@ -115,6 +117,82 @@ describe('ChatPanel', () => {
       ]
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('renders assistant tool calls beneath the message content', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Named session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I drafted the weekly update note.'
+          },
+          toolCalls: [
+            {
+              id: 'call-1',
+              type: 'function',
+              name: 'createNote',
+              arguments: {
+                title: 'Weekly update',
+                content: 'Draft content'
+              }
+            }
+          ],
+          createdNoteIds: [3],
+          updatedNoteIds: [3],
+          changedNoteIds: [3],
+          openedNoteIds: [],
+          notesChanged: true
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Named session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [3]
+              }
+            }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const wrapper = mount(ChatPanel);
+    await flushPromises();
+
+    await wrapper.get('#chat-draft').setValue('Draft a weekly update note.');
+    await wrapper.get('form.composer').trigger('submit');
+    await flushPromises();
+
+    const toolCallList = wrapper.get('.tool-call-list');
+    expect(toolCallList.text()).toContain('createNote');
+    expect(toolCallList.text()).toContain('Weekly update');
+    expect(toolCallList.text()).toContain('Draft content');
+    expect(wrapper.find('.message.assistant').text()).toContain('I drafted the weekly update note.');
   });
 
   it('surfaces opened note ids to the page shell', async () => {
@@ -305,7 +383,16 @@ describe('ChatPanel', () => {
               id: 2,
               role: 'assistant',
               content: 'Here is a draft.',
-              toolCalls: []
+              toolCalls: [
+                {
+                  id: 'call-1',
+                  type: 'function',
+                  name: 'createNote',
+                  arguments: {
+                    title: 'Weekly update'
+                  }
+                }
+              ]
             }
           ]
         })
@@ -348,6 +435,7 @@ describe('ChatPanel', () => {
     expect(wrapper.findAll('.message')).toHaveLength(2);
     expect(wrapper.find('.message.user').text()).toContain('Draft a weekly update.');
     expect(wrapper.find('.message.assistant').text()).toContain('Here is a draft.');
+    expect(wrapper.get('.tool-call-list').text()).toContain('createNote');
     expect(wrapper.vm.sessionId).toBe('session-2');
   });
 

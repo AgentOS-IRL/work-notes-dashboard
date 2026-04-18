@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import ToolCallList from '~/components/chat/ToolCallList.vue';
 import { useChat } from '~/composables/useChat';
 
 const props = withDefaults(
@@ -125,6 +126,10 @@ onMounted(() => {
             <span class="message-role">{{ message.role }}</span>
           </div>
           <p>{{ message.content }}</p>
+          <ToolCallList
+            v-if="message.role === 'assistant' && Array.isArray(message.toolCalls) && message.toolCalls.length > 0"
+            :tool-calls="message.toolCalls"
+          />
         </article>
       </div>
 
