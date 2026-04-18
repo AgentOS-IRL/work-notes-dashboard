@@ -14,6 +14,22 @@ export interface BedrockConfig {
   modelId: string;
 }
 
+export interface CodexConfig {
+  accessToken?: string;
+  accountId?: string;
+  modelName?: string;
+  baseUrl?: string;
+  timeout?: number;
+}
+
+export type LLMProvider = 'bedrock' | 'codex';
+
+export interface LLMConfig {
+  provider: LLMProvider;
+  bedrock?: BedrockConfig;
+  codex?: CodexConfig;
+}
+
 function requireEnv(name: string, value: string | undefined, missing: string[]) {
   const trimmed = value?.trim();
   if (!trimmed) {
@@ -68,4 +84,34 @@ export function resolveBedrockConfig(env = process.env): BedrockConfig {
     modelId,
     ...resolveOptionalAwsCredentials(env)
   };
+}
+
+export function resolveCodexConfig(env = process.env): CodexConfig {
+  return {
+    accessToken: env.CODEX_ACCESS_TOKEN?.trim() || undefined,
+    accountId: env.CODEX_ACCOUNT_ID?.trim() || undefined,
+    modelName: env.CODEX_MODEL_NAME,
+    baseUrl: env.CODEX_BASE_URL,
+    timeout: env.CODEX_TIMEOUT ? parseInt(env.CODEX_TIMEOUT, 10) : undefined
+  };
+}
+
+export function resolveLLMConfig(env = process.env): LLMConfig {
+  const provider = (env.LLM_PROVIDER || 'bedrock') as LLMProvider;
+
+  if (provider === 'codex') {
+    return {
+      provider,
+      codex: resolveCodexConfig(env)
+    };
+  }
+
+  if (provider === 'bedrock') {
+    return {
+      provider,
+      bedrock: resolveBedrockConfig(env)
+    };
+  }
+
+  throw new Error(`Unknown LLM provider: ${provider}`);
 }

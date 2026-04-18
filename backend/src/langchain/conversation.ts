@@ -1,7 +1,7 @@
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
 import type { Note } from '../notes-repository';
 import { createNoteTools } from './note-tools';
-import { createDefaultBedrockChatModel } from './aws-client';
+import { createDefaultChatModel } from './index';
 import type { NotesRepository } from '../notes-repository';
 
 export type ChatRole = 'user' | 'assistant';
@@ -121,7 +121,7 @@ export function createConversationService(options: {
   model?: ConversationModel;
 }): ConversationService {
   const tools = createNoteTools(options.repository);
-  const model = options.model ?? createDefaultBedrockChatModel();
+  const model = options.model ?? (createDefaultChatModel() as unknown as ConversationModel);
   const modelWithTools = model.bindTools([
     tools.createNoteTool,
     tools.getNoteTool,
