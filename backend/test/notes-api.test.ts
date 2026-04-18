@@ -43,6 +43,10 @@ test('notes API supports create, list, read, update, delete, and validation', as
     assert.ok(createdResponse.body.note.id);
     assert.equal(createdResponse.body.note.title, 'Release notes');
     assert.equal(createdResponse.body.note.content, 'Initial content');
+    assert.deepEqual(createdResponse.body.note.metadata, {
+      created: '',
+      updated: []
+    });
 
     const noteId = createdResponse.body.note.id as number;
 
@@ -71,6 +75,7 @@ test('notes API supports create, list, read, update, delete, and validation', as
     assert.equal(updatedResponse.body.note.id, noteId);
     assert.equal(updatedResponse.body.note.title, 'Release notes v2');
     assert.equal(updatedResponse.body.note.content, 'Updated body');
+    assert.deepEqual(updatedResponse.body.note.metadata, createdResponse.body.note.metadata);
 
     await request(server.app)
       .delete(`/api/notes/${noteId}`)

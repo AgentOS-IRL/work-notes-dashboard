@@ -12,6 +12,7 @@ export interface ChatTurn {
 }
 
 export interface ChatRequest {
+  sessionId: string;
   messages: ChatTurn[];
 }
 
@@ -125,17 +126,19 @@ export function createConversationService(options: {
   repository: NotesRepository;
   model?: ConversationModel;
 }): ConversationService {
-  const tools = createNoteTools(options.repository);
   const model = options.model ?? (createDefaultChatModel() as unknown as ConversationModel);
-  const modelWithTools = model.bindTools([
-    tools.createNoteTool,
-    tools.getNoteTool,
-    tools.listNotesTool,
-    tools.updateNoteTool
-  ]);
 
   return {
     async replyToConversation(request: ChatRequest): Promise<ChatResponse> {
+      const tools = createNoteTools(options.repository, {
+        sessionId: request.sessionId
+      });
+      const modelWithTools = model.bindTools([
+        tools.createNoteTool,
+        tools.getNoteTool,
+        tools.listNotesTool,
+        tools.updateNoteTool
+      ]);
       const baseMessages = [new SystemMessage(SYSTEM_INSTRUCTION), ...toBaseMessages(request.messages)];
       const changedNoteIds = new Set<number>();
       let messages: BaseMessage[] = baseMessages;

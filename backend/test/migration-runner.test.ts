@@ -19,7 +19,7 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql']
+      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
     );
 
     assert.ok(
@@ -37,6 +37,16 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'chat_messages'")
         .get()
     );
+
+    const noteColumns = database
+      .prepare('PRAGMA table_info(notes)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(noteColumns.map((column) => column.name), [
+      'id',
+      'title',
+      'content',
+      'metadata'
+    ]);
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -60,7 +70,7 @@ test('initializeSqliteDatabase does not reapply migrations on a second startup',
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql']
+      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
     );
     assert.deepEqual(
       database.prepare('SELECT COUNT(*) AS count FROM notes').get(),
@@ -99,6 +109,7 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
         FOREIGN KEY (sessionId) REFERENCES chat_sessions(id) ON DELETE CASCADE
       );
 
+      INSERT INTO notes (title, content) VALUES ('Legacy note', 'Old body');
       INSERT INTO chat_sessions (id, name, createdAt) VALUES ('session-partial', 'Partial Session', 12345);
       INSERT INTO chat_messages (sessionId, role, content) VALUES (
         'session-partial',
@@ -129,13 +140,29 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
       'content',
       'createdAt'
     ]);
+
+    const noteColumns = database
+      .prepare('PRAGMA table_info(notes)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(noteColumns.map((column) => column.name), [
+      'id',
+      'title',
+      'content',
+      'metadata'
+    ]);
     assert.deepEqual(
       database
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql']
+      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
     );
+
+    const legacyNote = database
+      .prepare('SELECT id, title, content, metadata FROM notes WHERE title = ?')
+      .get('Legacy note') as { metadata?: string } | undefined;
+    assert.ok(legacyNote);
+    assert.equal(legacyNote?.metadata, '{}');
 
     const session = database
       .prepare('SELECT createdAt, lastActivityAt FROM chat_sessions WHERE id = ?')

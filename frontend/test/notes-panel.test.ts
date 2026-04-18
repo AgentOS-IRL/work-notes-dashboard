@@ -20,7 +20,11 @@ describe('NotesPanel', () => {
         note: {
           id: 7,
           title: 'Weekly note',
-          content: 'Body'
+          content: 'Body',
+          metadata: {
+            created: '',
+            updated: []
+          }
         },
         loading: false,
         errorMessage: '',
@@ -50,7 +54,11 @@ describe('NotesPanel', () => {
         note: {
           id: 11,
           title: 'Delete me',
-          content: 'Body'
+          content: 'Body',
+          metadata: {
+            created: '',
+            updated: []
+          }
         },
         loading: false,
         errorMessage: '',
@@ -79,7 +87,11 @@ describe('NotesPanel', () => {
         note: {
           id: 12,
           title: 'Loading note',
-          content: 'Body'
+          content: 'Body',
+          metadata: {
+            created: '',
+            updated: []
+          }
         },
         loading: true,
         errorMessage: '',
@@ -98,7 +110,11 @@ describe('NotesPanel', () => {
         note: {
           id: 13,
           title: 'Chat-first note',
-          content: 'Body'
+          content: 'Body',
+          metadata: {
+            created: '',
+            updated: []
+          }
         },
         loading: false,
         errorMessage: '',

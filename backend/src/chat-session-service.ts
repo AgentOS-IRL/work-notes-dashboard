@@ -39,6 +39,7 @@ export function createChatSessionService(options: {
       }
 
       const response = await options.conversationService.replyToConversation({
+        sessionId: request.sessionId,
         messages: request.messages
       });
 

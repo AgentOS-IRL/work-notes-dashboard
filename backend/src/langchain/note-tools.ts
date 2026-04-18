@@ -5,7 +5,14 @@ import { NotFoundError, type Note, type NotesRepository } from '../notes-reposit
 type NoteToolRepository = Pick<
   NotesRepository,
   'createNote' | 'getNoteById' | 'listNotes' | 'updateNote'
->;
+> &
+  Partial<
+    Pick<NotesRepository, 'createNoteForSession' | 'updateNoteForSession'>
+  >;
+
+export interface NoteToolContext {
+  sessionId?: string;
+}
 
 const noteIdSchema = z.object({
   id: z.number().int().positive().describe('The note id.')
@@ -24,10 +31,13 @@ function asNote(note: Note | null) {
   return note;
 }
 
-export function createNoteTools(repository: NoteToolRepository) {
+export function createNoteTools(repository: NoteToolRepository, context: NoteToolContext = {}) {
   const createNoteTool = tool(
     async ({ title, content }) => {
-      const note = repository.createNote({ title, content });
+      const note =
+        context.sessionId && repository.createNoteForSession
+          ? repository.createNoteForSession(context.sessionId, { title, content })
+          : repository.createNote({ title, content });
       return { note };
     },
     {
@@ -61,7 +71,10 @@ export function createNoteTools(repository: NoteToolRepository) {
 
   const updateNoteTool = tool(
     async ({ id, title, content }) => {
-      const note = repository.updateNote(id, { title, content });
+      const note =
+        context.sessionId && repository.updateNoteForSession
+          ? repository.updateNoteForSession(id, context.sessionId, { title, content })
+          : repository.updateNote(id, { title, content });
       return { note };
     },
     {

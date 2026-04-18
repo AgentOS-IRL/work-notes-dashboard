@@ -20,7 +20,11 @@ test('chat session service persists turns and generates a session name after the
 
   const generatedNames: string[][] = [];
   const conversationService = {
-    async replyToConversation(request: { messages: Array<{ role: string; content: string }> }) {
+    async replyToConversation(request: {
+      sessionId: string;
+      messages: Array<{ role: string; content: string }>;
+    }) {
+      assert.equal(request.sessionId, 'session-abc');
       return {
         assistantMessage: {
           role: 'assistant',
@@ -146,7 +150,8 @@ test('chat session service prunes expired rows before replying and refreshes ses
   const service = createChatSessionService({
     repository,
     conversationService: {
-      async replyToConversation() {
+      async replyToConversation(request: { sessionId: string }) {
+        assert.equal(request.sessionId, 'session-active');
         assert.equal(repository.getSessionById('session-expired'), null);
         assert.equal(repository.getSessionById('session-active')?.lastActivityAt, staleActivityAt);
 
@@ -218,7 +223,8 @@ test('chat session service keeps the chat response working when naming fails', a
   const service = createChatSessionService({
     repository,
     conversationService: {
-      async replyToConversation() {
+      async replyToConversation(request: { sessionId: string }) {
+        assert.equal(request.sessionId, 'session-fail');
         return {
           assistantMessage: {
             role: 'assistant',
@@ -298,13 +304,14 @@ test('chat session service does not persist a user turn when reply generation fa
   const service = createChatSessionService({
     repository,
     conversationService: {
-      async replyToConversation() {
+      async replyToConversation(request: { sessionId: string }) {
+        assert.equal(request.sessionId, 'session-timeout');
         throw new Error('Upstream timeout.');
       }
     },
     generateSessionName: async () => {
       throw new Error('This should not be called.');
-    }
+    },
   });
 
   try {
