@@ -20,7 +20,6 @@ export interface ChatSessionSummary {
   createdAt: number;
   lastActivityAt: number;
   metadata: ChatSessionMetadata;
-  toolCalls: ChatToolCall[];
 }
 
 export interface ChatSessionMetadata {
@@ -34,8 +33,17 @@ export interface ChatSessionListResponse {
   sessions: ChatSessionSummary[];
 }
 
+export interface ChatSessionDetail {
+  id: string;
+  name: string | null;
+  createdAt: number;
+  lastActivityAt: number;
+  metadata: ChatSessionMetadata;
+  toolCalls: ChatToolCall[];
+}
+
 export interface ChatSessionDetailResponse {
-  session: ChatSessionSummary;
+  session: ChatSessionDetail;
   messages: ChatMessage[];
 }
 

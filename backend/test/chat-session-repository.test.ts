@@ -395,8 +395,7 @@ test('ChatSessionRepository normalizes legacy session metadata rows', () => {
           metadata: {
             created: [1, 2],
             updated: [2, 3]
-          },
-          toolCalls: []
+          }
         }
       ]
     );
@@ -446,8 +445,7 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
         name: session.name,
         createdAt: session.createdAt,
         lastActivityAt: session.lastActivityAt,
-        metadata: session.metadata,
-        toolCalls: session.toolCalls
+        metadata: session.metadata
       })),
       [
         {
@@ -458,8 +456,7 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
           metadata: {
             created: [],
             updated: []
-          },
-          toolCalls: []
+          }
         },
         {
           id: 'session-middle',
@@ -469,8 +466,7 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
           metadata: {
             created: [],
             updated: []
-          },
-          toolCalls: []
+          }
         },
         {
           id: 'session-old',
@@ -480,8 +476,7 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
           metadata: {
             created: [],
             updated: []
-          },
-          toolCalls: []
+          }
         }
       ]
     );

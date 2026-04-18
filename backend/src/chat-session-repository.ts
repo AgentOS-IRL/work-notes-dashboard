@@ -13,6 +13,14 @@ export interface ChatSession {
   toolCalls: ChatToolCall[];
 }
 
+export interface ChatSessionSummary {
+  id: string;
+  name: string | null;
+  createdAt: number;
+  lastActivityAt: number;
+  metadata: ChatSessionMetadata;
+}
+
 export interface ChatSessionMetadata {
   created: number[];
   updated: number[];
@@ -65,6 +73,21 @@ function toChatSession(row: unknown): ChatSession {
     lastActivityAt: session.lastActivityAt,
     metadata: normalizeChatSessionMetadata(session.metadata),
     toolCalls: normalizeChatSessionToolCalls(session.toolCalls)
+  };
+}
+
+function toChatSessionSummary(row: unknown): ChatSessionSummary {
+  const session = row as ChatSession | undefined;
+  if (!session) {
+    throw new Error('Expected a chat session row.');
+  }
+
+  return {
+    id: session.id,
+    name: session.name ?? null,
+    createdAt: session.createdAt,
+    lastActivityAt: session.lastActivityAt,
+    metadata: normalizeChatSessionMetadata(session.metadata)
   };
 }
 
@@ -366,7 +389,7 @@ export class ChatSessionRepository {
     return Number(result?.count ?? 0);
   }
 
-  listRecentSessions(limit = 20): ChatSession[] {
+  listRecentSessions(limit = 20): ChatSessionSummary[] {
     if (!Number.isInteger(limit) || limit <= 0) {
       throw new ValidationError('A valid session limit is required.');
     }
@@ -377,16 +400,15 @@ export class ChatSessionRepository {
         `
           SELECT id, name, createdAt, lastActivityAt
           , metadata
-          , toolCalls
           FROM chat_sessions
           WHERE lastActivityAt >= ?
           ORDER BY lastActivityAt DESC, createdAt DESC, id DESC
           LIMIT ?
         `
       )
-      .all(cutoff, limit) as ChatSession[];
+      .all(cutoff, limit) as ChatSessionSummary[];
 
-    return rows.map((row) => toChatSession(row));
+    return rows.map((row) => toChatSessionSummary(row));
   }
 
   getRecentMessages(sessionId: string, limit = 10): ChatMessage[] {

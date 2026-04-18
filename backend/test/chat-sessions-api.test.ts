@@ -79,16 +79,7 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
               metadata: {
                 created: [1],
                 updated: [1, 2]
-              },
-              toolCalls: [
-                {
-                  id: 'call-1',
-                  name: 'create_note',
-                  args: {
-                    title: 'Sprint plan'
-                  }
-                }
-              ]
+              }
             },
             {
               id: 'session-2',
@@ -98,8 +89,7 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
               metadata: {
                 created: [],
                 updated: [3]
-              },
-              toolCalls: []
+              }
             }
           ]
         });

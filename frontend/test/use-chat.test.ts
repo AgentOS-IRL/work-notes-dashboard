@@ -24,16 +24,7 @@ describe('useChat', () => {
             metadata: {
               created: [1],
               updated: [1]
-            },
-            toolCalls: [
-              {
-                id: 'call-1',
-                name: 'create_note',
-                args: {
-                  title: 'Weekly update'
-                }
-              }
-            ]
+            }
           },
           {
             id: 'session-2',
@@ -43,8 +34,7 @@ describe('useChat', () => {
             metadata: {
               created: [],
               updated: []
-            },
-            toolCalls: []
+            }
           }
         ]
       })
@@ -63,7 +53,6 @@ describe('useChat', () => {
     );
     expect(chat.sessions.value).toHaveLength(2);
     expect(chat.sessions.value[0].label).toBe('Named session');
-    expect(chat.sessions.value[0].toolCalls).toHaveLength(1);
     expect(chat.sessions.value[1].label).toMatch(/2023|2024|2025|2026/);
     expect(chat.sessions.value[1].label).toMatch(/:/);
     expect(
@@ -89,16 +78,7 @@ describe('useChat', () => {
               metadata: {
                 created: [],
                 updated: []
-              },
-              toolCalls: [
-                {
-                  id: 'call-1',
-                  name: 'create_note',
-                  args: {
-                    title: 'Weekly update'
-                  }
-                }
-              ]
+              }
             }
           ]
         })
@@ -113,16 +93,7 @@ describe('useChat', () => {
             metadata: {
               created: [],
               updated: [1]
-            },
-            toolCalls: [
-              {
-                id: 'call-1',
-                name: 'create_note',
-                args: {
-                  title: 'Weekly update'
-                }
-              }
-            ]
+            }
           },
           messages: [
             {
@@ -149,16 +120,7 @@ describe('useChat', () => {
               metadata: {
                 created: [],
                 updated: [1]
-              },
-              toolCalls: [
-                {
-                  id: 'call-1',
-                  name: 'create_note',
-                  args: {
-                    title: 'Weekly update'
-                  }
-                }
-              ]
+              }
             }
           ]
         })
@@ -188,16 +150,7 @@ describe('useChat', () => {
               metadata: {
                 created: [1],
                 updated: [1]
-              },
-              toolCalls: [
-                {
-                  id: 'call-1',
-                  name: 'create_note',
-                  args: {
-                    title: 'Weekly update'
-                  }
-                }
-              ]
+              }
             }
           ]
         })
@@ -215,7 +168,6 @@ describe('useChat', () => {
     expect(chat.sessionId.value).toBe('session-1');
     expect(chat.selectedSessionId.value).toBe('session-1');
     expect(chat.messages.value).toHaveLength(2);
-    expect(chat.sessions.value[0].toolCalls).toHaveLength(1);
     expect(chat.draft.value).toBe('');
 
     chat.draft.value = 'Refine the sprint plan.';
@@ -413,8 +365,7 @@ describe('useChat', () => {
               metadata: {
                 created: [],
                 updated: []
-              },
-              toolCalls: []
+              }
             }
           ]
         })
