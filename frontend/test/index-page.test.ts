@@ -48,15 +48,15 @@ describe('index page', () => {
     const wrapper = mount(IndexPage);
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Developer workspace for chat and notes.');
-    expect(wrapper.text()).toContain('Explore notes');
+    expect(wrapper.text()).toContain('Work Notes');
+    expect(wrapper.text()).toContain('Explore');
     expect(wrapper.text()).toContain('Sprint plan');
-    expect(wrapper.text()).toContain('Rendered');
+    expect(wrapper.text()).toContain('Outline milestones');
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Return to chat');
+    expect(wrapper.text()).toContain('Chat');
     expect(wrapper.find('.notes-tree').exists()).toBe(true);
 
     const noteButtons = wrapper.findAll('.tree-item');

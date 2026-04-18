@@ -45,16 +45,12 @@ describe('useChat', () => {
       messages: Array<{ role: string; content: string }>;
     };
 
-    expect(requestBody.messages).toHaveLength(2);
+    expect(requestBody.messages).toHaveLength(1);
     expect(requestBody.messages[0]).toMatchObject({
-      role: 'assistant',
-      content: 'I am connected to the notes backend. Ask me to refine, summarize, or capture ideas.'
-    });
-    expect(requestBody.messages[1]).toMatchObject({
       role: 'user',
       content: 'Refine the sprint plan.'
     });
-    expect(chat.messages.value).toHaveLength(3);
+    expect(chat.messages.value).toHaveLength(2);
     expect(chat.messages.value.at(-1)).toMatchObject({
       role: 'assistant',
       content: 'I refined the sprint plan.'
@@ -70,11 +66,7 @@ describe('useChat', () => {
     await chat.sendMessage();
 
     expect(chat.errorMessage.value).toBe('Request failed with status 500');
-    expect(chat.messages.value).toHaveLength(1);
-    expect(chat.messages.value[0]).toMatchObject({
-      role: 'assistant',
-      content: 'I am connected to the notes backend. Ask me to refine, summarize, or capture ideas.'
-    });
+    expect(chat.messages.value).toHaveLength(0);
     expect(chat.draft.value).toBe('Hello');
   });
 });
