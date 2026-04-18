@@ -6,12 +6,15 @@ Minimal monorepo with:
 - static frontend serving from the backend
 - LangChain Converse-powered chat that can inspect and update notes
 - SQLite persistence for notes
+- file-based SQLite migrations that run automatically on backend startup
 
 ## Layout
 
 - `frontend/` generates a static site into `.output/public`
 - `backend/` serves that generated output, exposes `/api/notes` and `/api/chat`, and falls back to `index.html`
 - `backend/data/notes.sqlite` is the default SQLite file path
+- `backend/src/db/migrations/` stores sequential `.sql` migration files
+- `backend/dist/db/migrations/` is populated during the backend build so the runtime can read the same files from `dist`
 
 ## Commands
 
@@ -32,6 +35,18 @@ Minimal monorepo with:
 - `BEDROCK_AWS_ACCESS_KEY_ID` and `BEDROCK_AWS_SECRET_ACCESS_KEY` optionally override the AWS default credential chain
 - `BEDROCK_AWS_SESSION_TOKEN` optionally sets a temporary session token when using explicit credentials
 - `BEDROCK_MODEL_ID` selects the Bedrock model used by the LangChain client
+
+## SQLite Migrations
+
+The backend applies SQLite migrations automatically when it opens the database.
+
+- migration files live in `backend/src/db/migrations/`
+- files are executed in sorted filename order, so use numeric prefixes like `001_` and `002_`
+- the migration runner records applied files in the `_migrations` table
+- each migration runs inside a transaction so a failed file rolls back cleanly
+- the backend build copies the SQL files into `backend/dist/db/migrations/` before `npm run start` launches the compiled server
+
+The current setup keeps the baseline schema in `001_initial.sql` and the timestamp backfill and related index changes in `002_add_timestamps.sql`. Existing databases that already have the chat timestamp columns still start cleanly because the runner detects that schema and only records the migration history.
 
 ## Chat API
 
@@ -78,4 +93,4 @@ These tools reuse the same repository implementation as the HTTP API. They are b
 
 ## Serving model
 
-The backend does not build the frontend. It resolves the dist directory, checks that it exists, serves static assets, creates the SQLite schema on startup, exposes the notes API, and returns `index.html` for SPA-style routes.
+The backend does not build the frontend. It resolves the dist directory, checks that it exists, serves static assets, applies SQLite migrations on startup, exposes the notes API, and returns `index.html` for SPA-style routes.

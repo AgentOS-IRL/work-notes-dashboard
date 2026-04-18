@@ -12,7 +12,7 @@ import {
 const NOW = 1_700_000_000_000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-test('initializeSqliteDatabase creates the chat session tables', () => {
+test('initializeSqliteDatabase applies the chat schema migrations', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-schema-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -29,6 +29,13 @@ test('initializeSqliteDatabase creates the chat session tables', () => {
 
     assert.ok(sessionsTable);
     assert.ok(messagesTable);
+    assert.deepEqual(
+      database
+        .prepare('SELECT name FROM _migrations ORDER BY id')
+        .all()
+        .map((row) => (row as { name: string }).name),
+      ['001_initial.sql', '002_add_timestamps.sql']
+    );
 
     const sessionColumns = database
       .prepare('PRAGMA table_info(chat_sessions)')
@@ -74,7 +81,7 @@ test('initializeSqliteDatabase creates the chat session tables', () => {
   }
 });
 
-test('initializeSqliteDatabase migrates legacy chat tables with timestamp columns', () => {
+test('initializeSqliteDatabase migrates legacy chat tables without timestamp columns', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-migration-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -116,8 +123,8 @@ test('initializeSqliteDatabase migrates legacy chat tables with timestamp column
     assert.deepEqual(sessionColumns.map((column) => column.name), [
       'id',
       'name',
-      'lastActivityAt',
-      'createdAt'
+      'createdAt',
+      'lastActivityAt'
     ]);
 
     const messageColumns = database
@@ -130,6 +137,13 @@ test('initializeSqliteDatabase migrates legacy chat tables with timestamp column
       'content',
       'createdAt'
     ]);
+    assert.deepEqual(
+      database
+        .prepare('SELECT name FROM _migrations ORDER BY id')
+        .all()
+        .map((row) => (row as { name: string }).name),
+      ['001_initial.sql', '002_add_timestamps.sql']
+    );
 
     const repository = new ChatSessionRepository(database, { now: () => NOW });
     const session = repository.getSessionById('session-legacy');

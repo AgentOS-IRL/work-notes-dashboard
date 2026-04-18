@@ -2,7 +2,7 @@
   "name": "work-notes-dashboard-backend",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/copy-migrations.mjs",
     "dev": "tsx watch --env-file=.env src/server.ts",
     "start": "node --env-file=.env dist/server.js",
     "test": "node --env-file=.env --import tsx --test \"test/**/*.test.ts\""
