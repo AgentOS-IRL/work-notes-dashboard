@@ -205,7 +205,8 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       metadata: {
         created: [],
         updated: []
-      }
+      },
+      toolCalls: []
     });
 
     const userMessage = repository.insertUserMessage('session-123', 'Draft a weekly update.');
@@ -234,7 +235,8 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       metadata: {
         created: [],
         updated: []
-      }
+      },
+      toolCalls: []
     });
     assert.deepEqual(repository.getSessionById('session-123'), renamed);
 
@@ -389,7 +391,7 @@ test('ChatSessionRepository normalizes legacy session metadata rows', () => {
         12345,
         1700000000000,
         '{"created":[1,1,"2","bad"],"updated":[2,3,3]}',
-        NULL
+        '[{"id":"call-legacy","name":"create_note","args":{"title":"Legacy note"}}]'
       );
     `);
 
@@ -402,7 +404,16 @@ test('ChatSessionRepository normalizes legacy session metadata rows', () => {
       metadata: {
         created: [1, 2],
         updated: [2, 3]
-      }
+      },
+      toolCalls: [
+        {
+          id: 'call-legacy',
+          name: 'create_note',
+          args: {
+            title: 'Legacy note'
+          }
+        }
+      ]
     });
 
     assert.deepEqual(

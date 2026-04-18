@@ -138,7 +138,8 @@ test('chat API returns assistant replies and note change metadata', async () => 
       metadata: {
         created: [1],
         updated: [1]
-      }
+      },
+      toolCalls: []
     });
     assert.deepEqual(
       repository.getRecentMessages('session-123', 10).map((message) => ({

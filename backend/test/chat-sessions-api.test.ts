@@ -117,7 +117,8 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
             metadata: {
               created: [],
               updated: [3]
-            }
+            },
+            toolCalls: []
           },
           messages: [
             {

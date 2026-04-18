@@ -10,6 +10,7 @@ export interface ChatSession {
   createdAt: number;
   lastActivityAt: number;
   metadata: ChatSessionMetadata;
+  toolCalls: ChatToolCall[];
 }
 
 export interface ChatSessionSummary {
@@ -71,7 +72,8 @@ function toChatSession(row: unknown): ChatSession {
     name: session.name ?? null,
     createdAt: session.createdAt,
     lastActivityAt: session.lastActivityAt,
-    metadata: normalizeChatSessionMetadata(session.metadata)
+    metadata: normalizeChatSessionMetadata(session.metadata),
+    toolCalls: normalizeChatToolCalls(session.toolCalls)
   };
 }
 
@@ -201,6 +203,14 @@ function serializeChatToolCalls(toolCalls: ChatToolCall[]) {
   return JSON.stringify(normalizedToolCalls);
 }
 
+function hasColumn(database: SqliteDatabase, tableName: string, columnName: string) {
+  const columns = database.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{
+    name: string;
+  }>;
+
+  return columns.some((column) => column.name === columnName);
+}
+
 function mergeChatSessionMetadata(
   currentMetadata: ChatSessionMetadata | null,
   nextMetadata: Partial<ChatSessionMetadata>
@@ -248,6 +258,7 @@ function toChatMessage(row: unknown): ChatMessage {
 export class ChatSessionRepository {
   private readonly now: () => number;
   private readonly retentionMs: number;
+  private readonly hasChatSessionToolCallsColumn: boolean;
 
   constructor(
     private readonly database: SqliteDatabase,
@@ -255,6 +266,7 @@ export class ChatSessionRepository {
   ) {
     this.now = options.now ?? Date.now;
     this.retentionMs = options.retentionMs ?? ONE_WEEK_MS;
+    this.hasChatSessionToolCallsColumn = hasColumn(database, 'chat_sessions', 'toolCalls');
   }
 
   cleanupExpiredData(now = this.now()) {
@@ -277,7 +289,9 @@ export class ChatSessionRepository {
     const normalizedSessionId = assertSessionId(sessionId);
     const session = this.database
       .prepare(
-        'SELECT id, name, createdAt, lastActivityAt, metadata FROM chat_sessions WHERE id = ?'
+        this.hasChatSessionToolCallsColumn
+          ? 'SELECT id, name, createdAt, lastActivityAt, metadata, toolCalls FROM chat_sessions WHERE id = ?'
+          : 'SELECT id, name, createdAt, lastActivityAt, metadata FROM chat_sessions WHERE id = ?'
       )
       .get(normalizedSessionId);
 
