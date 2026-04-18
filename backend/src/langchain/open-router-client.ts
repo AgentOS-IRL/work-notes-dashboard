@@ -1,73 +1,61 @@
-// Simpler open router client , meant for general llm tasks. 
-
 import OpenAI from 'openai';
-import { z } from 'zod';
+import type { ChatTurn } from './conversation';
 
-// 1. Initialize the client pointing to OpenRouter
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    "HTTP-Referer": "http://localhost:3000", // Optional: for OpenRouter rankings
-    "X-Title": "My TypeScript App",          // Optional: for OpenRouter rankings
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+function createOpenRouterClient() {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY is required to generate chat session names.');
   }
-});
 
-// // 2. Define your expected TypeScript structure using Zod
-// const UserProfileSchema = z.object({
-//   name: z.string(),
-//   age: z.number(),
-//   occupation: z.string(),
-//   skills: z.array(z.string())
-// });
+  return new OpenAI({
+    baseURL: OPENROUTER_BASE_URL,
+    apiKey,
+    defaultHeaders: {
+      'HTTP-Referer': process.env.OPENROUTER_REFERER ?? 'http://localhost:3000',
+      'X-Title': process.env.OPENROUTER_APP_TITLE ?? 'work-notes-dashboard'
+    }
+  });
+}
 
-// // Create a TypeScript type from the Zod schema
-// type UserProfile = z.infer<typeof UserProfileSchema>;
+function formatMessages(messages: ChatTurn[]) {
+  return messages
+    .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+    .join('\n');
+}
 
-// async function getStructuredData(): Promise<UserProfile | null> {
-//   try {
-//     const response = await openai.chat.completions.create({
-//       // Choose an OpenRouter model good at following JSON instructions
-//       model: "meta-llama/llama-3.1-8b-instruct", 
-//       response_format: { type: "json_object" }, // Forces JSON output
-//       messages: [
-//         {
-//           role: "system",
-//           // You MUST explicitly tell the model to output JSON and provide the schema
-//           content: `You are a helpful data extraction assistant. 
-//           Respond ONLY with valid JSON matching this schema:
-//           {
-//             "name": "string",
-//             "age": "number",
-//             "occupation": "string",
-//             "skills": ["string"]
-//           }`
-//         },
-//         {
-//           role: "user",
-//           content: "Extract the profile: John is a 32-year-old software engineer who knows TypeScript, React, and Node.js."
-//         }
-//       ]
-//     });
+function sanitizeSessionName(content: string) {
+  return content
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[.?!]+$/g, '')
+    .trim();
+}
 
-//     // 3. Extract and parse the response
-//     const rawContent = response.choices[0]?.message?.content;
-    
-//     if (!rawContent) {
-//       throw new Error("No content received from OpenRouter.");
-//     }
+export async function generateSessionNameFromOpenRouter(messages: ChatTurn[]) {
+  const client = createOpenRouterClient();
+  const response = await client.chat.completions.create({
+    model: DEFAULT_MODEL,
+    temperature: 0.2,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You name chat sessions. Return a concise title of 2 to 5 words in Title Case. Do not use quotes, punctuation, or markdown.'
+      },
+      {
+        role: 'user',
+        content: `Name this chat session from the recent user turns:\n\n${formatMessages(messages)}`
+      }
+    ]
+  });
 
-//     // Parse the string into a JSON object, then validate it with Zod
-//     const parsedJson = JSON.parse(rawContent);
-//     const validatedData = UserProfileSchema.parse(parsedJson);
+  const rawContent = response.choices[0]?.message?.content;
+  if (typeof rawContent !== 'string' || rawContent.trim() === '') {
+    throw new Error('No session name was returned from OpenRouter.');
+  }
 
-//     return validatedData;
-
-//   } catch (error) {
-//     console.error("Failed to fetch or parse structured data:", error);
-//     return null;
-//   }
-// }
-
-// // Execute
-// getStructuredData().then(data => console.log(data));
+  return sanitizeSessionName(rawContent);
+}

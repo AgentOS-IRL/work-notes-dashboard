@@ -16,12 +16,14 @@ const emit = defineEmits<{
 
 const {
   messages,
+  sessionId,
   draft,
   isSending,
   errorMessage,
   hasMessages,
   addSuggestion,
-  sendMessage
+  sendMessage,
+  resetChat
 } = useChat({
   onNotesChanged(changedNoteIds) {
     emit('notes-changed', changedNoteIds);
@@ -39,7 +41,7 @@ function handleComposerKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <section class="chat-panel" :class="{ compact: props.compact }">
+  <section class="chat-panel" :class="{ compact: props.compact }" :data-session-id="sessionId">
     <header class="panel-header">
       <div class="header-title">
         <span class="window-controls" aria-hidden="true">
@@ -56,6 +58,9 @@ function handleComposerKeydown(event: KeyboardEvent) {
       <div class="header-status" aria-label="Chat status">
         <span class="status-token">~/notes</span>
         <span class="status-pill">{{ hasMessages ? 'session active' : 'ready' }}</span>
+        <button type="button" class="clear-button" :disabled="isSending" @click="resetChat">
+          Clear
+        </button>
       </div>
     </header>
 
@@ -235,6 +240,34 @@ h2 {
 
 .status-token {
   color: var(--accent);
+}
+
+.clear-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-muted) 88%, transparent);
+  color: var(--text-strong);
+  font: 600 0.75rem/1 var(--mono-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.clear-button:hover:not(:disabled),
+.clear-button:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.clear-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .chat-frame {
