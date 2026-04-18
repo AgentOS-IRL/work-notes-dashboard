@@ -62,7 +62,11 @@ test('conversation service uses note tools to inspect and update notes', async (
                   {
                     id: 1,
                     title: 'Sprint plan',
-                    content: 'Draft the kickoff note.'
+                    content: 'Draft the kickoff note.',
+                    metadata: {
+                      created: '',
+                      updated: []
+                    }
                   }
                 ]
               })
@@ -91,7 +95,11 @@ test('conversation service uses note tools to inspect and update notes', async (
               note: {
                 id: 1,
                 title: 'Sprint plan refined',
-                content: 'Add a sharper project summary.'
+                content: 'Add a sharper project summary.',
+                metadata: {
+                  created: '',
+                  updated: ['session-abc']
+                }
               }
             })
           );
@@ -107,6 +115,7 @@ test('conversation service uses note tools to inspect and update notes', async (
   try {
     const service = createConversationService({ repository, model });
     const response = await service.replyToConversation({
+      sessionId: 'session-abc',
       messages: [
         {
           role: 'user',
@@ -128,7 +137,15 @@ test('conversation service uses note tools to inspect and update notes', async (
       role: 'assistant',
       content: 'Updated the sprint note.'
     });
-    assert.equal(repository.getNoteById(1)?.title, 'Sprint plan refined');
+    assert.deepEqual(repository.getNoteById(1), {
+      id: 1,
+      title: 'Sprint plan refined',
+      content: 'Add a sharper project summary.',
+      metadata: {
+        created: '',
+        updated: ['session-abc']
+      }
+    });
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -158,6 +175,7 @@ test('conversation service rejects an empty assistant response before returning'
     await assert.rejects(
       () =>
         service.replyToConversation({
+          sessionId: 'session-empty',
           messages: [
             {
               role: 'user',

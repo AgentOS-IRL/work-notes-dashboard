@@ -16,8 +16,18 @@ describe('useNotes', () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       jsonResponse({
         notes: [
-          { id: 1, title: 'Daily log', content: 'First entry' },
-          { id: 2, title: 'Follow-up', content: 'Second entry' }
+          {
+            id: 1,
+            title: 'Daily log',
+            content: 'First entry',
+            metadata: { created: '', updated: [] }
+          },
+          {
+            id: 2,
+            title: 'Follow-up',
+            content: 'Second entry',
+            metadata: { created: '', updated: [] }
+          }
         ]
       })
     );
@@ -45,8 +55,18 @@ describe('useNotes', () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       jsonResponse({
         notes: [
-          { id: 1, title: 'Daily log', content: 'First entry' },
-          { id: 2, title: 'Follow-up', content: 'Second entry' }
+          {
+            id: 1,
+            title: 'Daily log',
+            content: 'First entry',
+            metadata: { created: '', updated: [] }
+          },
+          {
+            id: 2,
+            title: 'Follow-up',
+            content: 'Second entry',
+            metadata: { created: '', updated: [] }
+          }
         ]
       })
     );
@@ -68,18 +88,48 @@ describe('useNotes', () => {
       .mockResolvedValueOnce(
         jsonResponse({
           notes: [
-            { id: 1, title: 'Daily log', content: 'First entry' },
-            { id: 2, title: 'Follow-up', content: 'Second entry' },
-            { id: 3, title: 'Draft', content: 'Original body' }
+            {
+              id: 1,
+              title: 'Daily log',
+              content: 'First entry',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 2,
+              title: 'Follow-up',
+              content: 'Second entry',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 3,
+              title: 'Draft',
+              content: 'Original body',
+              metadata: { created: '', updated: [] }
+            }
           ]
         })
       )
       .mockResolvedValueOnce(
         jsonResponse({
           notes: [
-            { id: 1, title: 'Daily log', content: 'First entry' },
-            { id: 2, title: 'Follow-up', content: 'Second entry' },
-            { id: 3, title: 'Draft ready', content: 'Fresh body' }
+            {
+              id: 1,
+              title: 'Daily log',
+              content: 'First entry',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 2,
+              title: 'Follow-up',
+              content: 'Second entry',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 3,
+              title: 'Draft ready',
+              content: 'Fresh body',
+              metadata: { created: '', updated: [] }
+            }
           ]
         })
       );
@@ -95,7 +145,8 @@ describe('useNotes', () => {
     expect(notes.notes.value[2]).toEqual({
       id: 3,
       title: 'Draft ready',
-      content: 'Fresh body'
+      content: 'Fresh body',
+      metadata: { created: '', updated: [] }
     });
     expect(notes.selectedNoteId.value).toBe(3);
     expect(notes.selectedNote.value?.title).toBe('Draft ready');
@@ -110,16 +161,36 @@ describe('useNotes', () => {
       .mockResolvedValueOnce(
         jsonResponse({
           notes: [
-            { id: 1, title: 'Sprint plan', content: 'Initial body' },
-            { id: 2, title: 'Retro', content: 'Second entry' }
+            {
+              id: 1,
+              title: 'Sprint plan',
+              content: 'Initial body',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 2,
+              title: 'Retro',
+              content: 'Second entry',
+              metadata: { created: '', updated: [] }
+            }
           ]
         })
       )
       .mockResolvedValueOnce(
         jsonResponse({
           notes: [
-            { id: 1, title: 'Sprint plan updated', content: 'Initial body' },
-            { id: 2, title: 'Retro', content: 'Second entry' }
+            {
+              id: 1,
+              title: 'Sprint plan updated',
+              content: 'Initial body',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 2,
+              title: 'Retro',
+              content: 'Second entry',
+              metadata: { created: '', updated: [] }
+            }
           ]
         })
       );
@@ -146,22 +217,46 @@ describe('useNotes', () => {
       .fn()
       .mockResolvedValueOnce(
         jsonResponse({
-          note: { id: 3, title: 'New note', content: 'Created body' }
+          note: {
+            id: 3,
+            title: 'New note',
+            content: 'Created body',
+            metadata: { created: '', updated: [] }
+          }
         }, { status: 201 })
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          notes: [{ id: 3, title: 'New note', content: 'Created body' }]
+          notes: [
+            {
+              id: 3,
+              title: 'New note',
+              content: 'Created body',
+              metadata: { created: '', updated: [] }
+            }
+          ]
         })
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          note: { id: 3, title: 'Updated note', content: 'Updated body' }
+          note: {
+            id: 3,
+            title: 'Updated note',
+            content: 'Updated body',
+            metadata: { created: '', updated: [] }
+          }
         })
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          notes: [{ id: 3, title: 'Updated note', content: 'Updated body' }]
+          notes: [
+            {
+              id: 3,
+              title: 'Updated note',
+              content: 'Updated body',
+              metadata: { created: '', updated: [] }
+            }
+          ]
         })
       )
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
@@ -201,9 +296,24 @@ describe('useNotes', () => {
       .mockResolvedValueOnce(
         jsonResponse({
           notes: [
-            { id: 1, title: 'Daily log', content: 'First entry' },
-            { id: 2, title: 'Follow-up', content: 'Second entry' },
-            { id: 3, title: 'Retro', content: 'Third entry' }
+            {
+              id: 1,
+              title: 'Daily log',
+              content: 'First entry',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 2,
+              title: 'Follow-up',
+              content: 'Second entry',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 3,
+              title: 'Retro',
+              content: 'Third entry',
+              metadata: { created: '', updated: [] }
+            }
           ]
         })
       )
@@ -211,8 +321,18 @@ describe('useNotes', () => {
       .mockResolvedValueOnce(
         jsonResponse({
           notes: [
-            { id: 1, title: 'Daily log', content: 'First entry' },
-            { id: 3, title: 'Retro', content: 'Third entry' }
+            {
+              id: 1,
+              title: 'Daily log',
+              content: 'First entry',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 3,
+              title: 'Retro',
+              content: 'Third entry',
+              metadata: { created: '', updated: [] }
+            }
           ]
         })
       );

@@ -30,22 +30,49 @@ describe('index page', () => {
         if (notesListCount === 1) {
           return jsonResponse({
             notes: [
-              { id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' },
-              { id: 2, title: 'Retro', content: '# Retro\n\nRemember the blocker.' }
+              {
+                id: 1,
+                title: 'Sprint plan',
+                content: '# Sprint plan\n\n- Outline milestones',
+                metadata: { created: '', updated: [] }
+              },
+              {
+                id: 2,
+                title: 'Retro',
+                content: '# Retro\n\nRemember the blocker.',
+                metadata: { created: '', updated: [] }
+              }
             ]
           });
         }
 
         if (notesListCount === 2) {
           return jsonResponse({
-            notes: [{ id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' }]
+            notes: [
+              {
+                id: 1,
+                title: 'Sprint plan',
+                content: '# Sprint plan\n\n- Outline milestones',
+                metadata: { created: '', updated: [] }
+              }
+            ]
           });
         }
 
         return jsonResponse({
           notes: [
-            { id: 1, title: 'Sprint plan refined', content: '# Sprint plan\n\n- Outline milestones' },
-            { id: 3, title: 'Weekly update', content: '# Weekly update\n\n- Sent to the team' }
+            {
+              id: 1,
+              title: 'Sprint plan refined',
+              content: '# Sprint plan\n\n- Outline milestones',
+              metadata: { created: '', updated: [] }
+            },
+            {
+              id: 3,
+              title: 'Weekly update',
+              content: '# Weekly update\n\n- Sent to the team',
+              metadata: { created: 'session-123', updated: ['session-123'] }
+            }
           ]
         });
       }

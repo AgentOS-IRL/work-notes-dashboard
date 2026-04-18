@@ -42,7 +42,11 @@ test('chat API returns assistant replies and note change metadata', async () => 
       now: () => NOW
     },
     conversationService: {
-      async replyToConversation(requestBody: { messages: Array<{ role: string; content: string }> }) {
+      async replyToConversation(requestBody: {
+        sessionId: string;
+        messages: Array<{ role: string; content: string }>;
+      }) {
+        assert.equal(requestBody.sessionId, 'session-123');
         assert.deepEqual(requestBody.messages, [
           {
             role: 'user',

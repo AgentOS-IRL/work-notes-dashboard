@@ -1,0 +1,2 @@
+ALTER TABLE notes
+ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}';

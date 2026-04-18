@@ -34,7 +34,7 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql']
+      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
     );
 
     const sessionColumns = database
@@ -142,7 +142,7 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql']
+      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
     );
 
     const repository = new ChatSessionRepository(database, { now: () => NOW });

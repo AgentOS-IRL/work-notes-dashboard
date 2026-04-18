@@ -14,7 +14,7 @@ test('LangChain note tools create, get, list, and update notes', async () => {
   const database = openSqliteDatabase(databasePath);
   initializeSqliteDatabase(database);
   const repository = new NotesRepository(database);
-  const tools = createNoteTools(repository);
+  const tools = createNoteTools(repository, { sessionId: 'session-abc' });
 
   try {
     const created = await tools.createNoteTool.invoke({
@@ -26,7 +26,11 @@ test('LangChain note tools create, get, list, and update notes', async () => {
       note: {
         id: 1,
         title: 'Sprint plan',
-        content: 'Initial body'
+        content: 'Initial body',
+        metadata: {
+          created: 'session-abc',
+          updated: ['session-abc']
+        }
       }
     });
 
@@ -35,7 +39,11 @@ test('LangChain note tools create, get, list, and update notes', async () => {
       note: {
         id: 1,
         title: 'Sprint plan',
-        content: 'Initial body'
+        content: 'Initial body',
+        metadata: {
+          created: 'session-abc',
+          updated: ['session-abc']
+        }
       }
     });
 
@@ -45,7 +53,11 @@ test('LangChain note tools create, get, list, and update notes', async () => {
         {
           id: 1,
           title: 'Sprint plan',
-          content: 'Initial body'
+          content: 'Initial body',
+          metadata: {
+            created: 'session-abc',
+            updated: ['session-abc']
+          }
         }
       ]
     });
@@ -60,14 +72,22 @@ test('LangChain note tools create, get, list, and update notes', async () => {
       note: {
         id: 1,
         title: 'Sprint plan v2',
-        content: 'Updated body'
+        content: 'Updated body',
+        metadata: {
+          created: 'session-abc',
+          updated: ['session-abc']
+        }
       }
     });
 
     assert.deepEqual(repository.getNoteById(1) as Note, {
       id: 1,
       title: 'Sprint plan v2',
-      content: 'Updated body'
+      content: 'Updated body',
+      metadata: {
+        created: 'session-abc',
+        updated: ['session-abc']
+      }
     });
   } finally {
     database.close();
@@ -100,7 +120,12 @@ test('createNoteTool rejects blank titles before repository access', async () =>
   const tools = createNoteTools({
     createNote() {
       createCalls += 1;
-      return { id: 1, title: 'x', content: 'y' };
+      return {
+        id: 1,
+        title: 'x',
+        content: 'y',
+        metadata: { created: '', updated: [] }
+      };
     },
     getNoteById() {
       throw new Error('not used');
