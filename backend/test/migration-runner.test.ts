@@ -208,3 +208,80 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test('initializeSqliteDatabase repairs a partially migrated chat session metadata schema', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-migrations-metadata-partial-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+
+  try {
+    database.exec(`
+      CREATE TABLE chat_sessions (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        createdAt INTEGER NOT NULL DEFAULT 0,
+        lastActivityAt INTEGER NOT NULL DEFAULT 0,
+        metadata TEXT
+      );
+
+      INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (
+        'session-metadata',
+        'Metadata Session',
+        12345,
+        12345,
+        NULL
+      );
+
+      INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (
+        'session-metadata-empty',
+        'Metadata Session Empty',
+        23456,
+        23456,
+        ''
+      );
+    `);
+
+    initializeSqliteDatabase(database);
+
+    const sessionColumns = database
+      .prepare('PRAGMA table_info(chat_sessions)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(sessionColumns.map((column) => column.name), [
+      'id',
+      'name',
+      'createdAt',
+      'lastActivityAt',
+      'metadata'
+    ]);
+
+    assert.deepEqual(
+      database
+        .prepare('SELECT name FROM _migrations ORDER BY id')
+        .all()
+        .map((row) => (row as { name: string }).name),
+      [
+        '001_initial.sql',
+        '002_add_timestamps.sql',
+        '003_add_note_metadata.sql',
+        '004_add_chat_session_metadata.sql'
+      ]
+    );
+
+    const rows = database
+      .prepare('SELECT id, metadata FROM chat_sessions ORDER BY id')
+      .all() as Array<{ id: string; metadata: string }>;
+    assert.deepEqual(rows, [
+      {
+        id: 'session-metadata',
+        metadata: '{}'
+      },
+      {
+        id: 'session-metadata-empty',
+        metadata: '{}'
+      }
+    ]);
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});

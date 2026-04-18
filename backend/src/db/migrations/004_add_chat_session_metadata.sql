@@ -1,6 +1,3 @@
-ALTER TABLE chat_sessions
-ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}';
-
-UPDATE chat_sessions
-SET metadata = '{}'
-WHERE metadata IS NULL OR trim(metadata) = '';
+-- Handled in backend/src/db/migration-runner.ts so it can be applied safely
+-- when chat_sessions.metadata already exists but this migration has not been
+-- recorded yet.

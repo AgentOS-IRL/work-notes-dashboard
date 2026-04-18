@@ -87,6 +87,23 @@ export function runMigrations(database: SqliteDatabase) {
     insertMigration.run(fileName, timestamp);
   });
 
+  const applyChatSessionMetadataMigration = database.transaction((fileName: string) => {
+    const timestamp = Date.now();
+
+    ensureColumn(
+      database,
+      'chat_sessions',
+      'metadata',
+      `
+        ALTER TABLE chat_sessions
+        ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}';
+      `
+    );
+
+    backfillChatSessionMetadata(database);
+    insertMigration.run(fileName, timestamp);
+  });
+
   const applyTimestampMigration = database.transaction((fileName: string) => {
     const timestamp = Date.now();
 
@@ -146,10 +163,13 @@ export function runMigrations(database: SqliteDatabase) {
       continue;
     }
 
-    executeMigration(fileName, sql);
     if (fileName === '004_add_chat_session_metadata.sql') {
-      backfillChatSessionMetadata(database);
+      applyChatSessionMetadataMigration(fileName);
+      console.log(`Applied migration: ${fileName}`);
+      continue;
     }
+
+    executeMigration(fileName, sql);
     console.log(`Applied migration: ${fileName}`);
   }
 }
