@@ -27,6 +27,15 @@ const {
     emit('notes-changed', changedNoteIds);
   }
 });
+
+function handleComposerKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
+    return;
+  }
+
+  event.preventDefault();
+  void sendMessage();
+}
 </script>
 
 <template>
@@ -104,6 +113,7 @@ const {
               v-model="draft"
               rows="4"
               placeholder="Ask the notes agent..."
+              @keydown="handleComposerKeydown"
             />
           </div>
         </label>

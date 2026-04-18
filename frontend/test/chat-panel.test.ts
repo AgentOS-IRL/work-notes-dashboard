@@ -36,7 +36,7 @@ describe('ChatPanel', () => {
     expect(wrapper.find('form.composer').exists()).toBe(true);
 
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
-    await wrapper.get('form.composer').trigger('submit');
+    await wrapper.get('#chat-draft').trigger('keydown', { key: 'Enter' });
     await flushPromises();
 
     expect(wrapper.find('.status-pill').text()).toBe('session active');
@@ -45,6 +45,21 @@ describe('ChatPanel', () => {
     expect(wrapper.find('.message.assistant').text()).toContain('I updated the sprint plan note.');
     expect(wrapper.emitted('notes-changed')).toEqual([[[1]]]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Shift+Enter available for new lines in the composer', async () => {
+    const fetchMock = vi.fn();
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const wrapper = mount(ChatPanel);
+
+    await wrapper.get('#chat-draft').setValue('Line one');
+    await wrapper.get('#chat-draft').trigger('keydown', { key: 'Enter', shiftKey: true });
+    await flushPromises();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect((wrapper.get('#chat-draft').element as HTMLTextAreaElement).value).toBe('Line one');
   });
 
   it('collapses the prompt line in compact mode', () => {
