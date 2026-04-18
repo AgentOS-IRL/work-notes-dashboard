@@ -1,6 +1,12 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+const CODEX_AUTH_PATH_ENV = 'CODEX_AUTH_PATH';
+
+export const DEFAULT_CODEX_MODEL_NAME = 'gpt-5.4-mini';
+export const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex/responses';
+export const DEFAULT_CODEX_TIMEOUT = 60000;
 
 export interface CodexCredentials {
   api_key?: string;
@@ -8,12 +14,14 @@ export interface CodexCredentials {
   [key: string]: unknown;
 }
 
-const LANGCHAIN_MODEL_ENV = 'LANGCHAIN_MODEL_ID';
-const CODING_TOOL_AGENT_ENV = 'CODING_TOOL_AGENT';
-const CODEX_AUTH_PATH_ENV = 'CODEX_AUTH_PATH';
-
-export const DEFAULT_LANGCHAIN_MODEL_ID = 'gpt-5.4-mini';
-export const DEFAULT_CODING_TOOL_AGENT = 'codex';
+export interface CodexConfig {
+  accessToken?: string;
+  accountId?: string;
+  modelName?: string;
+  baseUrl?: string;
+  timeout?: number;
+  authPath?: string;
+}
 
 let cachedCredentials: CodexCredentials | null = null;
 let cachedAuthPath: string | null = null;
@@ -31,8 +39,8 @@ function expandHome(filePath: string): string {
   return remainder ? path.join(os.homedir(), remainder) : os.homedir();
 }
 
-function resolveAuthPath(): string {
-  const override = process.env[CODEX_AUTH_PATH_ENV]?.trim();
+export function getCodexAuthPath(env = process.env): string {
+  const override = env[CODEX_AUTH_PATH_ENV]?.trim();
   if (override) {
     return expandHome(override);
   }
@@ -87,16 +95,24 @@ function loadCredentials(filePath: string): CodexCredentials {
   return credentials;
 }
 
-export function getCodexAuthPath(): string {
-  return resolveAuthPath();
+function resolveTimeout(value: string | undefined): number | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return DEFAULT_CODEX_TIMEOUT;
+  }
+
+  return parseInt(trimmed, 10);
 }
 
-export function getCodingToolAgent(): string {
-  return process.env[CODING_TOOL_AGENT_ENV]?.trim() || DEFAULT_CODING_TOOL_AGENT;
-}
-
-export function getLangchainModelId(): string {
-  return process.env[LANGCHAIN_MODEL_ENV]?.trim() || DEFAULT_LANGCHAIN_MODEL_ID;
+export function resolveCodexConfig(env = process.env): CodexConfig {
+  return {
+    authPath: getCodexAuthPath(env),
+    accessToken: env.CODEX_ACCESS_TOKEN?.trim() || undefined,
+    accountId: env.CODEX_ACCOUNT_ID?.trim() || undefined,
+    modelName: env.CODEX_MODEL_NAME?.trim() || DEFAULT_CODEX_MODEL_NAME,
+    baseUrl: env.CODEX_BASE_URL?.trim() || DEFAULT_CODEX_BASE_URL,
+    timeout: resolveTimeout(env.CODEX_TIMEOUT)
+  };
 }
 
 export function getCodexCredentials(options?: { reload?: boolean }): CodexCredentials {

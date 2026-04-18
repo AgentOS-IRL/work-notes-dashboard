@@ -37,6 +37,7 @@ type ToolResult = Record<string, unknown> & {
 };
 
 const MAX_TOOL_LOOPS = 5;
+const NOTE_TOOL_NAMES = new Set(['create_note', 'get_note', 'list_notes', 'update_note']);
 
 const SYSTEM_INSTRUCTION = [
   'You are a work notes assistant inside a split-view dashboard.',
@@ -95,6 +96,10 @@ function collectChangedNoteIds(toolName: string, result: ToolResult) {
   }
 
   return [];
+}
+
+function isNoteToolName(toolName: string): toolName is 'create_note' | 'get_note' | 'list_notes' | 'update_note' {
+  return NOTE_TOOL_NAMES.has(toolName);
 }
 
 async function invokeTool(
@@ -158,12 +163,7 @@ export function createConversationService(options: {
 
         for (const toolCall of toolCalls) {
           const toolName = toolCall.name;
-          if (
-            toolName !== 'create_note' &&
-            toolName !== 'get_note' &&
-            toolName !== 'list_notes' &&
-            toolName !== 'update_note'
-          ) {
+          if (!isNoteToolName(toolName)) {
             messages = [
               ...messages,
               new ToolMessage(

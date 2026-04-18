@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { type CodexConfig, resolveCodexConfig } from './config/codex';
 
 export const defaultDatabasePath = path.resolve(process.cwd(), 'data', 'notes.sqlite');
 
@@ -12,14 +13,6 @@ export interface BedrockConfig {
   secretAccessKey?: string;
   sessionToken?: string;
   modelId: string;
-}
-
-export interface CodexConfig {
-  accessToken?: string;
-  accountId?: string;
-  modelName?: string;
-  baseUrl?: string;
-  timeout?: number;
 }
 
 export type LLMProvider = 'bedrock' | 'codex';
@@ -83,16 +76,6 @@ export function resolveBedrockConfig(env = process.env): BedrockConfig {
     region,
     modelId,
     ...resolveOptionalAwsCredentials(env)
-  };
-}
-
-export function resolveCodexConfig(env = process.env): CodexConfig {
-  return {
-    accessToken: env.CODEX_ACCESS_TOKEN?.trim() || undefined,
-    accountId: env.CODEX_ACCOUNT_ID?.trim() || undefined,
-    modelName: env.CODEX_MODEL_NAME,
-    baseUrl: env.CODEX_BASE_URL,
-    timeout: env.CODEX_TIMEOUT ? parseInt(env.CODEX_TIMEOUT, 10) : undefined
   };
 }
 

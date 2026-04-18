@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import { AIMessage } from '@langchain/core/messages';
 
-import { resolveCodexConfig, resolveLLMConfig } from '../src/config';
+import { resolveLLMConfig } from '../src/config';
 import { createCodexChatModel, createDefaultChatModel, ChatCodex } from '../src/langchain';
 
 const ENV_KEYS = [
@@ -69,37 +69,6 @@ function makeJwt(accountId: string) {
   return `${header}.${payload}.signature`;
 }
 
-test('resolveCodexConfig reads Codex configuration from environment', () => {
-  const config = resolveCodexConfig({
-    CODEX_ACCESS_TOKEN: 'token-123',
-    CODEX_ACCOUNT_ID: 'account-456',
-    CODEX_MODEL_NAME: 'gpt-5.4-mini',
-    CODEX_BASE_URL: 'https://test.com/codex',
-    CODEX_TIMEOUT: '30000'
-  } as NodeJS.ProcessEnv);
-
-  assert.deepEqual(config, {
-    accessToken: 'token-123',
-    accountId: 'account-456',
-    modelName: 'gpt-5.4-mini',
-    baseUrl: 'https://test.com/codex',
-    timeout: 30000
-  });
-  assert.equal(typeof config.timeout, 'number');
-});
-
-test('resolveCodexConfig returns undefined fields when env is missing', () => {
-  const config = resolveCodexConfig({} as NodeJS.ProcessEnv);
-
-  assert.deepEqual(config, {
-    accessToken: undefined,
-    accountId: undefined,
-    modelName: undefined,
-    baseUrl: undefined,
-    timeout: undefined
-  });
-});
-
 test('resolveLLMConfig chooses the codex provider based on LLM_PROVIDER', () => {
   const config = resolveLLMConfig({
     LLM_PROVIDER: 'codex',
@@ -117,7 +86,8 @@ test('resolveLLMConfig chooses the codex provider based on LLM_PROVIDER', () => 
       accountId: 'account',
       modelName: 'gpt-5.4-mini',
       baseUrl: 'https://example.com/codex',
-      timeout: 45000
+      timeout: 45000,
+      authPath: path.join(os.homedir(), '.codex', 'auth.json')
     }
   });
 });
@@ -146,6 +116,22 @@ test('resolveLLMConfig rejects an unknown provider with a clear error', () => {
       } as NodeJS.ProcessEnv),
     { message: 'Unknown LLM provider: invalid-provider' }
   );
+});
+
+test('resolveLLMConfig uses Codex defaults when optional env values are missing', () => {
+  const config = resolveLLMConfig({
+    LLM_PROVIDER: 'codex'
+  } as NodeJS.ProcessEnv);
+
+  assert.equal(config.provider, 'codex');
+  assert.deepEqual(config.codex, {
+    accessToken: undefined,
+    accountId: undefined,
+    modelName: 'gpt-5.4-mini',
+    baseUrl: 'https://chatgpt.com/backend-api/codex/responses',
+    timeout: 60000,
+    authPath: path.join(os.homedir(), '.codex', 'auth.json')
+  });
 });
 
 test('createCodexChatModel creates a ChatCodex instance', () => {
@@ -317,8 +303,20 @@ test('createDefaultChatModel returns correct model based on provider', () => {
         CODEX_ACCOUNT_ID: undefined
       },
       () => {
-        const model = createDefaultChatModel();
-        assert.equal(model instanceof ChatCodex, true);
+        const codexModel = createDefaultChatModel();
+        assert.equal(codexModel instanceof ChatCodex, true);
+      }
+    );
+
+    withEnv(
+      {
+        LLM_PROVIDER: 'bedrock',
+        BEDROCK_AWS_REGION: 'us-east-1',
+        BEDROCK_MODEL_ID: 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+      },
+      () => {
+        const bedrockModel = createDefaultChatModel();
+        assert.equal(bedrockModel.constructor.name, 'ChatBedrockConverse');
       }
     );
   } finally {

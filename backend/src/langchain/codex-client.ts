@@ -1,25 +1,26 @@
 import {
   BaseChatModel,
   BaseChatModelParams,
-  type BaseChatModelCallOptions
-} from "@langchain/core/language_models/chat_models";
+  type BaseChatModelCallOptions,
+  type BindToolsInput
+} from '@langchain/core/language_models/chat_models';
 import {
   BaseMessage,
-  ChatMessage,
   AIMessageChunk,
-  ToolMessage,
-  BaseMessageChunk,
   AIMessage,
   type ToolCallChunk
-} from "@langchain/core/messages";
-import { ChatGenerationChunk, ChatResult } from "@langchain/core/outputs";
-import { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
-import { BindToolsInput } from "@langchain/core/language_models/chat_models";
-import * as fs from "fs";
-import { getCodexAuthPath } from "../config/openai";
-
-import { type CodexConfig, resolveCodexConfig } from "../config";
-import { z } from "zod";
+} from '@langchain/core/messages';
+import { ChatGenerationChunk, ChatResult } from '@langchain/core/outputs';
+import { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
+import * as fs from 'node:fs';
+import { z } from 'zod';
+import {
+  DEFAULT_CODEX_BASE_URL,
+  DEFAULT_CODEX_MODEL_NAME,
+  DEFAULT_CODEX_TIMEOUT,
+  resolveCodexConfig,
+  type CodexConfig
+} from '../config/codex';
 
 export interface ChatCodexInput extends BaseChatModelParams, Partial<CodexConfig> {
   authPath?: string;
@@ -41,10 +42,15 @@ export class ChatCodex extends BaseChatModel<ChatCodexCallOptions> {
   constructor(fields: ChatCodexInput = {}) {
     super(fields);
 
-    this.authPath = fields.authPath || getCodexAuthPath();
-    this.modelName = fields.modelName || "gpt-5.4-mini";
-    this.baseUrl = fields.baseUrl || "https://chatgpt.com/backend-api/codex/responses";
-    this.timeout = fields.timeout ?? 60000;
+    const defaults = resolveCodexConfig();
+    this.authPath = fields.authPath ?? defaults.authPath ?? '';
+    this.modelName = fields.modelName ?? defaults.modelName ?? DEFAULT_CODEX_MODEL_NAME;
+    this.baseUrl = fields.baseUrl ?? defaults.baseUrl ?? DEFAULT_CODEX_BASE_URL;
+    this.timeout = fields.timeout ?? defaults.timeout ?? DEFAULT_CODEX_TIMEOUT;
+
+    if (!this.authPath) {
+      throw new Error('ChatCodex requires a Codex auth path.');
+    }
 
     const { accessToken, accountId } = this.loadAuth();
     this.accessToken = accessToken;
@@ -101,17 +107,19 @@ export class ChatCodex extends BaseChatModel<ChatCodexCallOptions> {
   }
 
   _llmType() {
-    return "codex";
+    return 'codex';
   }
 
   private convertMessages(messages: BaseMessage[]) {
     return messages.map((msg) => {
-      let role = "user";
-      let type = "input_text";
-      if (msg._getType() === "ai") role = "assistant";
-      if (msg._getType() === "system") role = "system";
-      if (msg._getType() === "tool") role = "user";
-      if (msg._getType() === "ai") type = "output_text";
+      const messageType = msg._getType();
+      const role =
+        messageType === 'ai'
+          ? 'assistant'
+          : messageType === 'system'
+            ? 'system'
+            : 'user';
+      const type = messageType === 'ai' ? 'output_text' : 'input_text';
 
       return {
         role,
@@ -127,25 +135,32 @@ export class ChatCodex extends BaseChatModel<ChatCodexCallOptions> {
 
   override bindTools(
     tools: BindToolsInput[],
-    kwargs?: Partial<ChatCodexCallOptions>
+    _kwargs?: Partial<ChatCodexCallOptions>
   ) {
     this.tools = tools;
     return this;
   }
 
   private convertTools(tools: BindToolsInput[]) {
-
-    return tools.map((t: any) => {
-      const name = t.name || t.function?.name;
-      const description = t.description || t.function?.description;
-      const parameters = z.toJSONSchema(t.schema) || { type: "object", properties: {}, required: [] };
+    return tools.map((tool) => {
+      const structuredTool = tool as BindToolsInput & {
+        name?: string;
+        description?: string;
+        function?: { name?: string; description?: string };
+        schema?: unknown;
+      };
+      const name = structuredTool.name || structuredTool.function?.name;
+      const description = structuredTool.description || structuredTool.function?.description;
+      const parameters = structuredTool.schema
+        ? z.toJSONSchema(structuredTool.schema as Parameters<typeof z.toJSONSchema>[0])
+        : { type: 'object', properties: {}, required: [] };
 
       return {
-        type: "function",
+        type: 'function',
         name,
         description,
         parameters
-      }
+      };
     });
   }
 
@@ -183,32 +198,29 @@ export class ChatCodex extends BaseChatModel<ChatCodexCallOptions> {
   ): AsyncGenerator<ChatGenerationChunk> {
     const { randomUUID } = require('crypto');
     const headers = {
-      "Authorization": `Bearer ${this.accessToken}`,
-      "chatgpt-account-id": this.accountId,
-      "OpenAI-Beta": "responses=experimental",
-      "originator": "codex_cli_rs",
-      "session_id": randomUUID(),
-      "accept": "text/event-stream",
-      "content-type": "application/json",
-      "User-Agent": "typescript-codex-client/1.0",
+      Authorization: `Bearer ${this.accessToken}`,
+      'chatgpt-account-id': this.accountId,
+      'OpenAI-Beta': 'responses=experimental',
+      originator: 'codex_cli_rs',
+      session_id: randomUUID(),
+      accept: 'text/event-stream',
+      'content-type': 'application/json',
+      'User-Agent': 'typescript-codex-client/1.0'
     };
 
     const body: any = {
       model: this.modelName,
       stream: true,
       store: false,
-      instructions: "You are a helpful assistant.",
-      text: { verbosity: "medium" },
+      instructions: 'You are a helpful assistant.',
+      text: { verbosity: 'medium' },
       input: this.convertMessages(messages),
     };
 
-    let tools = this.tools;
-    if (options.tools) {
-      tools = this.tools.concat(options.tools);
-    }
+    const tools = options.tools ? this.tools.concat(options.tools) : this.tools;
 
-    body.tools = this.convertTools(tools)
-    body.tool_choice = "auto";
+    body.tools = this.convertTools(tools);
+    body.tool_choice = 'auto';
     body.parallel_tool_calls = false;
 
     const response = await fetch(this.baseUrl, {
@@ -253,11 +265,11 @@ export class ChatCodex extends BaseChatModel<ChatCodexCallOptions> {
           let content = "";
           let chunkToolCallChunks: ToolCallChunk[] = [];
 
-          if (event.type === "response.output_text.delta") {
+          if (event.type === 'response.output_text.delta') {
             content = event.delta ?? "";
-          } else if (event.type === "response.output_item.added") {
+          } else if (event.type === 'response.output_item.added') {
             const item = event.item;
-            if (item?.type === "function_call") {
+            if (item?.type === 'function_call') {
               const index = toolCallCount++;
               toolCalls[item.id] = { id: item.id, name: item.name, args: "", index };
               chunkToolCallChunks.push({
@@ -267,7 +279,7 @@ export class ChatCodex extends BaseChatModel<ChatCodexCallOptions> {
                 index
               });
             }
-          } else if (event.type === "response.function_call_arguments.delta") {
+          } else if (event.type === 'response.function_call_arguments.delta') {
             const call = toolCalls[event.item_id];
             if (call) {
               call.args += event.delta ?? "";
@@ -293,7 +305,7 @@ export class ChatCodex extends BaseChatModel<ChatCodexCallOptions> {
             }
           }
         } catch (e) {
-          // Ignore parse errors for non-JSON SSE lines
+          // Ignore parse errors for non-JSON SSE lines.
         }
       }
     }
