@@ -33,5 +33,6 @@ export interface ChatSessionDetailResponse {
 export interface ChatResponse {
   assistantMessage: ChatTurn;
   changedNoteIds: number[];
+  openedNoteIds: number[];
   notesChanged: boolean;
 }

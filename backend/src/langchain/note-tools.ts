@@ -58,6 +58,17 @@ export function createNoteTools(repository: NoteToolRepository, context: NoteToo
     }
   );
 
+  const openNoteTool = tool(
+    async ({ id }) => {
+      return { note: asNote(repository.getNoteById(id)) };
+    },
+    {
+      name: 'open_note',
+      description: 'Open a note by id from the SQLite-backed notes store without modifying it.',
+      schema: noteIdSchema
+    }
+  );
+
   const listNotesTool = tool(
     async () => {
       return { notes: repository.listNotes() };
@@ -87,6 +98,7 @@ export function createNoteTools(repository: NoteToolRepository, context: NoteToo
   return {
     createNoteTool,
     getNoteTool,
+    openNoteTool,
     listNotesTool,
     updateNoteTool
   };

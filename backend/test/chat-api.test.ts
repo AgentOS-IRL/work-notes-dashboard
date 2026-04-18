@@ -66,6 +66,7 @@ test('chat API returns assistant replies and note change metadata', async () => 
             content: 'I updated the sprint plan note.'
           },
           changedNoteIds: [1],
+          openedNoteIds: [],
           notesChanged: true
         };
       }
@@ -100,6 +101,7 @@ test('chat API returns assistant replies and note change metadata', async () => 
             content: 'I updated the sprint plan note.'
           },
           changedNoteIds: [1],
+          openedNoteIds: [],
           notesChanged: true
         });
       });

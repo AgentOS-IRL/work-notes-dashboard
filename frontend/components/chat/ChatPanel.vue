@@ -13,6 +13,14 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (event: 'notes-changed', changedNoteIds: number[]): void;
+  (event: 'note-opened', openedNoteIds: number[]): void;
+  (
+    event: 'notes-activity',
+    activity: {
+      changedNoteIds: number[];
+      openedNoteIds: number[];
+    }
+  ): void;
 }>();
 
 const {
@@ -31,8 +39,8 @@ const {
   sendMessage,
   resetChat
 } = useChat({
-  onNotesChanged(changedNoteIds) {
-    emit('notes-changed', changedNoteIds);
+  onNotesActivity(activity) {
+    emit('notes-activity', activity);
   }
 });
 

@@ -19,6 +19,7 @@ export interface ChatRequest {
 export interface ChatResponse {
   assistantMessage: ChatTurn;
   changedNoteIds: number[];
+  openedNoteIds: number[];
   notesChanged: boolean;
 }
 
@@ -38,7 +39,13 @@ type ToolResult = Record<string, unknown> & {
 };
 
 const MAX_TOOL_LOOPS = 5;
-const NOTE_TOOL_NAMES = new Set(['create_note', 'get_note', 'list_notes', 'update_note']);
+const NOTE_TOOL_NAMES = new Set([
+  'create_note',
+  'get_note',
+  'list_notes',
+  'open_note',
+  'update_note'
+]);
 
 const SYSTEM_INSTRUCTION = [
   'You are a work notes assistant inside a split-view dashboard.',
@@ -99,7 +106,15 @@ function collectChangedNoteIds(toolName: string, result: ToolResult) {
   return [];
 }
 
-function isNoteToolName(toolName: string): toolName is 'create_note' | 'get_note' | 'list_notes' | 'update_note' {
+function collectOpenedNoteIds(toolName: string, result: ToolResult) {
+  if (toolName === 'get_note' || toolName === 'open_note') {
+    return result.note ? [result.note.id] : [];
+  }
+
+  return [];
+}
+
+function isNoteToolName(toolName: string): toolName is 'create_note' | 'get_note' | 'list_notes' | 'open_note' | 'update_note' {
   return NOTE_TOOL_NAMES.has(toolName);
 }
 
@@ -115,6 +130,8 @@ async function invokeTool(
       return tools.getNoteTool.invoke(toolArgs as never);
     case 'list_notes':
       return tools.listNotesTool.invoke(toolArgs as never);
+    case 'open_note':
+      return tools.openNoteTool.invoke(toolArgs as never);
     case 'update_note':
       return tools.updateNoteTool.invoke(toolArgs as never);
     default:
@@ -136,11 +153,13 @@ export function createConversationService(options: {
       const modelWithTools = model.bindTools([
         tools.createNoteTool,
         tools.getNoteTool,
+        tools.openNoteTool,
         tools.listNotesTool,
         tools.updateNoteTool
       ]);
       const baseMessages = [new SystemMessage(SYSTEM_INSTRUCTION), ...toBaseMessages(request.messages)];
       const changedNoteIds = new Set<number>();
+      const openedNoteIds = new Set<number>();
       let messages: BaseMessage[] = baseMessages;
 
       for (let loopIndex = 0; loopIndex < MAX_TOOL_LOOPS; loopIndex += 1) {
@@ -160,6 +179,7 @@ export function createConversationService(options: {
               content: reply
             },
             changedNoteIds: [...changedNoteIds],
+            openedNoteIds: [...openedNoteIds],
             notesChanged: changedNoteIds.size > 0
           };
         }
@@ -182,6 +202,9 @@ export function createConversationService(options: {
             const result = (await invokeTool(toolName, toolCall.args, tools)) as ToolResult;
             for (const changedNoteId of collectChangedNoteIds(toolName, result)) {
               changedNoteIds.add(changedNoteId);
+            }
+            for (const openedNoteId of collectOpenedNoteIds(toolName, result)) {
+              openedNoteIds.add(openedNoteId);
             }
 
             messages = [

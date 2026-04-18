@@ -8,7 +8,7 @@ import { initializeSqliteDatabase, openSqliteDatabase } from '../src/db/sqlite';
 import { createNoteTools } from '../src/langchain';
 import { NotesRepository, type Note, NotFoundError } from '../src/notes-repository';
 
-test('LangChain note tools create, get, list, and update notes', async () => {
+test('LangChain note tools create, get, open, list, and update notes', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-tools-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -46,6 +46,9 @@ test('LangChain note tools create, get, list, and update notes', async () => {
         }
       }
     });
+
+    const opened = await tools.openNoteTool.invoke({ id: 1 });
+    assert.deepEqual(opened, fetched);
 
     const listed = await tools.listNotesTool.invoke({});
     assert.deepEqual(listed, {
@@ -87,6 +90,19 @@ test('LangChain note tools create, get, list, and update notes', async () => {
       metadata: {
         created: 'session-abc',
         updated: ['session-abc']
+      }
+    });
+
+    const reopened = await tools.openNoteTool.invoke({ id: 1 });
+    assert.deepEqual(reopened, {
+      note: {
+        id: 1,
+        title: 'Sprint plan v2',
+        content: 'Updated body',
+        metadata: {
+          created: 'session-abc',
+          updated: ['session-abc']
+        }
       }
     });
   } finally {
@@ -135,6 +151,12 @@ test('createNoteTool rejects blank titles before repository access', async () =>
     },
     listNotes() {
       throw new Error('not used');
+    },
+    createNoteForSession() {
+      throw new Error('not used');
+    },
+    updateNoteForSession() {
+      throw new Error('not used');
     }
   });
 
@@ -158,6 +180,12 @@ test('updateNoteTool surfaces repository errors correctly', async () => {
       throw error;
     },
     listNotes() {
+      throw new Error('not used');
+    },
+    createNoteForSession() {
+      throw new Error('not used');
+    },
+    updateNoteForSession() {
       throw new Error('not used');
     }
   });
@@ -185,6 +213,12 @@ test('getNoteTool surfaces not found errors from the repository layer', async ()
       throw new Error('not used');
     },
     listNotes() {
+      throw new Error('not used');
+    },
+    createNoteForSession() {
+      throw new Error('not used');
+    },
+    updateNoteForSession() {
       throw new Error('not used');
     }
   });
