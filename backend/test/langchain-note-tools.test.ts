@@ -62,93 +62,43 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
       notes: [
         {
           id: 1,
-          title: 'Sprint plan',
-          content: 'Initial body',
-          metadata: {
-            created: 'session-abc',
-            updated: ['session-abc']
-          }
+          title: 'Sprint plan'
         },
         {
           id: 2,
-          title: 'Note 2',
-          content: 'Body 2',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 2'
         },
         {
           id: 3,
-          title: 'Note 3',
-          content: 'Body 3',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 3'
         },
         {
           id: 4,
-          title: 'Note 4',
-          content: 'Body 4',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 4'
         },
         {
           id: 5,
-          title: 'Note 5',
-          content: 'Body 5',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 5'
         },
         {
           id: 6,
-          title: 'Note 6',
-          content: 'Body 6',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 6'
         },
         {
           id: 7,
-          title: 'Note 7',
-          content: 'Body 7',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 7'
         },
         {
           id: 8,
-          title: 'Note 8',
-          content: 'Body 8',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 8'
         },
         {
           id: 9,
-          title: 'Note 9',
-          content: 'Body 9',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 9'
         },
         {
           id: 10,
-          title: 'Note 10',
-          content: 'Body 10',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 10'
         }
       ]
     });
@@ -161,30 +111,15 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
       notes: [
         {
           id: 9,
-          title: 'Note 9',
-          content: 'Body 9',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 9'
         },
         {
           id: 10,
-          title: 'Note 10',
-          content: 'Body 10',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 10'
         },
         {
           id: 11,
-          title: 'Note 11',
-          content: 'Body 11',
-          metadata: {
-            created: '',
-            updated: []
-          }
+          title: 'Note 11'
         }
       ]
     });

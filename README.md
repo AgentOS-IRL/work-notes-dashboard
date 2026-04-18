@@ -86,9 +86,10 @@ The backend exposes LangChain tools that wrap the existing SQLite repository:
 
 - `create_note` creates a note with `{ "title": "...", "content": "..." }`
 - `get_note` reads a note by `{ "id": 123 }`
-- `list_notes` lists a page of notes for discovery and update selection
+- `list_notes` lists note ids and titles for discovery and update selection
+- `list_notes` returns `{ "notes": [{ "id": 123, "title": "..." }] }` instead of full note objects
 - `list_notes` defaults to `{ "limit": 10, "offset": 0 }`
-- `list_notes` accepts paging arguments like `{ "limit": 10, "offset": 20 }` to fetch later pages
+- `list_notes` accepts paging arguments like `{ "limit": 10, "offset": 20 }` to fetch later pages of note ids and titles
 - `update_note` updates a note with `{ "id": 123, "title": "...", "content": "..." }`
 
 These tools reuse the same repository implementation as the HTTP API. They are backend-side utilities and do not add a second persistence layer.
