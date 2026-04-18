@@ -12,27 +12,21 @@ defineProps<{
 <template>
   <section class="notes-panel">
     <header class="panel-header">
-      <div>
-        <p class="eyebrow">Note view</p>
-        <h2>Markdown note reader</h2>
-      </div>
-      <span class="status-pill">Rendered</span>
+      <h2>Note</h2>
     </header>
 
     <div class="viewer-frame">
-      <p v-if="loading" class="state-text">Loading notes…</p>
+      <p v-if="loading" class="state-text">Loading...</p>
       <p v-else-if="errorMessage" class="state-text error">{{ errorMessage }}</p>
       <div v-else-if="note" class="note-view">
         <div class="note-meta">
-          <p class="note-kicker">Selected note</p>
           <h3>{{ note.title }}</h3>
-          <p class="note-summary">Note #{{ note.id }} · {{ note.content.length }} characters</p>
         </div>
 
         <MarkdownRenderer :content="note.content" />
       </div>
       <div v-else class="empty-state">
-        <p>No note selected.</p>
+        <p>No note</p>
       </div>
     </div>
   </section>
@@ -41,6 +35,7 @@ defineProps<{
 <style scoped>
 .notes-panel {
   display: grid;
+  align-content: start;
   gap: 14px;
   min-height: 100%;
 }

@@ -29,45 +29,32 @@ const {
   }
 });
 
-const statusLabel = computed(() => (props.compact ? 'Collapsed' : 'Connected'));
+
 </script>
 
 <template>
-  <section class="chat-panel" :class="{ compact }">
+  <section class="chat-panel">
     <header class="panel-header">
-      <div>
-        <p class="eyebrow">Chat workspace</p>
-        <h2>
-          {{ compact ? 'Chat collapsed for browsing.' : 'Talk things out with the notes model.' }}
-        </h2>
-      </div>
-      <span class="status-pill">{{ statusLabel }}</span>
+      <h2>Chat</h2>
     </header>
 
     <div class="chat-frame">
-      <div class="chat-meta">
-        <p class="meta-title">Conversation</p>
-        <p class="meta-copy">
-          Messages go to the backend, which can inspect notes and update them with LangChain tool
-          calls.
-        </p>
-      </div>
+
 
       <p v-if="errorMessage" class="message error-banner">{{ errorMessage }}</p>
 
-      <div class="message-stream" :class="{ compact }" aria-live="polite">
+      <div class="message-stream" aria-live="polite">
         <article
           v-for="message in messages"
           :key="message.id"
           class="message"
           :class="message.role"
         >
-          <span class="message-label">{{ message.role === 'assistant' ? 'Assistant' : 'You' }}</span>
           <p>{{ message.content }}</p>
         </article>
       </div>
 
-      <div v-if="!compact" class="prompt-row">
+      <div class="prompt-row">
         <button
           type="button"
           class="prompt-chip"
@@ -91,36 +78,22 @@ const statusLabel = computed(() => (props.compact ? 'Collapsed' : 'Connected'));
         </button>
       </div>
 
-      <form v-if="!compact" class="composer" @submit.prevent="sendMessage">
+      <form class="composer" @submit.prevent="sendMessage">
         <label class="composer-label" for="chat-draft">
-          <span>Composer</span>
           <textarea
             id="chat-draft"
             v-model="draft"
             rows="4"
-            placeholder="Ask the assistant to improve or capture notes."
+            placeholder="Message..."
           />
         </label>
 
         <div class="composer-actions">
-          <p class="composer-hint">
-            {{
-              isSending
-                ? 'Sending message to the LLM...'
-                : hasMessages
-                  ? 'Conversation history is maintained locally and sent with each turn.'
-                  : 'Start a conversation.'
-            }}
-          </p>
           <button class="send-button" type="submit" :disabled="isSending || draft.trim().length === 0">
-            {{ isSending ? 'Sending...' : 'Send' }}
+            Send
           </button>
         </div>
       </form>
-
-      <p v-else class="collapsed-copy">
-        Chat input is hidden while the note tree is open. The message history remains visible.
-      </p>
     </div>
   </section>
 </template>
@@ -129,6 +102,7 @@ const statusLabel = computed(() => (props.compact ? 'Collapsed' : 'Connected'));
 .chat-panel {
   display: grid;
   gap: 14px;
+  align-content: start;
   min-height: 100%;
 }
 
@@ -171,6 +145,7 @@ h2 {
 .chat-frame {
   display: grid;
   gap: 14px;
+  align-content: start;
   padding: 20px;
   border-radius: 24px;
   background:

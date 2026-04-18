@@ -19,13 +19,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) => void } = {}) {
-  const messages = ref<ChatMessage[]>([
-    {
-      id: 1,
-      role: 'assistant',
-      content: 'I am connected to the notes backend. Ask me to refine, summarize, or capture ideas.'
-    }
-  ]);
+  const messages = ref<ChatMessage[]>([]);
   const draft = ref('');
   const isSending = ref(false);
   const errorMessage = ref('');

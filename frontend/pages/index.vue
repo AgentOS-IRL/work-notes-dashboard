@@ -19,7 +19,7 @@ const {
 } = useNotes();
 
 const exploreLabel = computed(() =>
-  workspaceMode.value === 'chat-first' ? 'Explore notes' : 'Return to chat'
+  workspaceMode.value === 'chat-first' ? 'Explore' : 'Chat'
 );
 
 onMounted(() => {
@@ -47,17 +47,10 @@ function toggleWorkspaceMode() {
     <section class="shell">
       <header class="workspace-bar">
         <div class="copy">
-          <p class="eyebrow">Work Notes Dashboard</p>
-          <h1>Developer workspace for chat and notes.</h1>
-          <p class="subtitle">
-            Keep the conversation on the left, then switch to note exploration without losing the
-            selected document on the right.
-          </p>
+          <h1>Work Notes</h1>
         </div>
 
         <div class="toolbar" aria-label="Workspace controls">
-          <span class="meta-pill">{{ notes.length }} notes</span>
-          <span class="meta-pill">{{ workspaceMode === 'chat-first' ? 'Chat-first' : 'Explore' }}</span>
           <button type="button" class="toggle-button" @click="toggleWorkspaceMode">
             {{ exploreLabel }}
           </button>
@@ -67,7 +60,7 @@ function toggleWorkspaceMode() {
       <div class="workspace">
         <aside class="left-rail">
           <ChatPanel
-            :compact="workspaceMode === 'explore-notes'"
+            v-show="workspaceMode === 'chat-first'"
             @notes-changed="handleNotesChanged"
           />
 

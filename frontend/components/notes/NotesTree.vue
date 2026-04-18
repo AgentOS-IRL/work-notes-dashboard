@@ -30,11 +30,7 @@ function handleSelect(node: NoteTreeNode) {
 <template>
   <section class="notes-tree" :class="{ nested: depth > 0 }">
     <header v-if="depth === 0" class="tree-header">
-      <div>
-        <p class="eyebrow">Explorer</p>
-        <h2>Notes tree</h2>
-      </div>
-      <span class="tree-count">{{ nodes.length }}</span>
+      <h2>Notes</h2>
     </header>
 
     <ul class="tree-list">
