@@ -8,6 +8,9 @@ import { initializeSqliteDatabase, openSqliteDatabase } from '../src/db/sqlite';
 import { ChatSessionRepository } from '../src/chat-session-repository';
 import { createChatSessionService } from '../src/chat-session-service';
 
+const NOW = 1_700_000_000_000;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
 test('chat session service persists turns and generates a session name after the threshold', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-service-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
@@ -110,6 +113,92 @@ test('chat session service persists turns and generates a session name after the
         {
           role: 'assistant',
           content: 'Assistant reply 3'
+        }
+      ]
+    );
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('chat session service prunes expired rows before replying and refreshes session activity', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-service-retention-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new ChatSessionRepository(database, { now: () => NOW });
+  const expiredAt = NOW - WEEK_MS - 1;
+  const staleActivityAt = NOW - 10_000;
+
+  database
+    .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
+    .run('session-expired', 'Expired Session', expiredAt);
+  database
+    .prepare(
+      'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+    )
+    .run('session-expired', 'user', 'Expired turn.', expiredAt);
+  database
+    .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
+    .run('session-active', null, staleActivityAt);
+
+  const service = createChatSessionService({
+    repository,
+    conversationService: {
+      async replyToConversation() {
+        assert.equal(repository.getSessionById('session-expired'), null);
+        assert.equal(repository.getSessionById('session-active')?.lastActivityAt, staleActivityAt);
+
+        return {
+          assistantMessage: {
+            role: 'assistant',
+            content: 'Assistant reply after cleanup'
+          },
+          changedNoteIds: [],
+          notesChanged: false
+        };
+      }
+    }
+  });
+
+  try {
+    const response = await service.replyToConversation({
+      sessionId: 'session-active',
+      messages: [
+        {
+          role: 'user',
+          content: 'Continue the conversation.'
+        }
+      ]
+    });
+
+    assert.deepEqual(response, {
+      assistantMessage: {
+        role: 'assistant',
+        content: 'Assistant reply after cleanup'
+      },
+      changedNoteIds: [],
+      notesChanged: false
+    });
+    assert.equal(repository.getSessionById('session-expired'), null);
+    assert.equal(repository.getSessionById('session-active')?.lastActivityAt, NOW);
+    assert.deepEqual(
+      repository.getRecentMessages('session-active', 10).map((message) => ({
+        role: message.role,
+        content: message.content,
+        createdAt: message.createdAt
+      })),
+      [
+        {
+          role: 'user',
+          content: 'Continue the conversation.',
+          createdAt: NOW
+        },
+        {
+          role: 'assistant',
+          content: 'Assistant reply after cleanup',
+          createdAt: NOW
         }
       ]
     );

@@ -32,6 +32,12 @@ export function createChatSessionService(options: {
         throw new ValidationError('A user message must be the last message in the session request.');
       }
 
+      try {
+        options.repository.cleanupExpiredData();
+      } catch {
+        // Retention cleanup is best-effort and must not block the chat reply.
+      }
+
       const response = await options.conversationService.replyToConversation({
         messages: request.messages
       });

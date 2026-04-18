@@ -9,6 +9,9 @@ import { createServer } from '../src/server';
 import { ChatSessionRepository } from '../src/chat-session-repository';
 import { initializeSqliteDatabase, openSqliteDatabase } from '../src/db/sqlite';
 
+const NOW = 1_700_000_000_000;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
 function createTempFrontendDist() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-api-'));
   const frontendDistPath = path.join(tempRoot, 'public');
@@ -31,30 +34,47 @@ test('chat API returns assistant replies and note change metadata', async () => 
   initializeSqliteDatabase(database);
   database.close();
   const { tempRoot: frontendRoot, frontendDistPath } = createTempFrontendDist();
-  const conversationService = {
-    async replyToConversation(requestBody: { messages: Array<{ role: string; content: string }> }) {
-      assert.deepEqual(requestBody.messages, [
-        {
-          role: 'user',
-          content: 'Refine the sprint plan.'
-        }
-      ]);
-
-      return {
-        assistantMessage: {
-          role: 'assistant',
-          content: 'I updated the sprint plan note.'
-        },
-        changedNoteIds: [1],
-        notesChanged: true
-      };
-    }
-  };
+  const serverState = { current: null as ReturnType<typeof createServer> | null };
   const server = createServer({
     databasePath,
     frontendDistPath,
-    conversationService
+    chatSessionRepositoryOptions: {
+      now: () => NOW
+    },
+    conversationService: {
+      async replyToConversation(requestBody: { messages: Array<{ role: string; content: string }> }) {
+        assert.deepEqual(requestBody.messages, [
+          {
+            role: 'user',
+            content: 'Refine the sprint plan.'
+          }
+        ]);
+
+        assert.ok(serverState.current);
+        const repository = new ChatSessionRepository(serverState.current.database, {
+          now: () => NOW
+        });
+        assert.equal(repository.getSessionById('session-expired'), null);
+
+        return {
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I updated the sprint plan note.'
+          },
+          changedNoteIds: [1],
+          notesChanged: true
+        };
+      }
+    }
   });
+  serverState.current = server;
+
+  server.database
+    .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
+    .run('session-expired', 'Expired Session', NOW - WEEK_MS - 1);
+  server.database
+    .prepare('INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)')
+    .run('session-expired', 'user', 'Expired message.', NOW - WEEK_MS - 1);
 
   try {
     await request(server.app)
@@ -80,35 +100,32 @@ test('chat API returns assistant replies and note change metadata', async () => 
         });
       });
 
-    const verificationDatabase = openSqliteDatabase(databasePath);
-    initializeSqliteDatabase(verificationDatabase);
-
-    try {
-      const repository = new ChatSessionRepository(verificationDatabase);
-
-      assert.deepEqual(repository.getSessionById('session-123'), {
-        id: 'session-123',
-        name: null
-      });
-      assert.deepEqual(
-        repository.getRecentMessages('session-123', 10).map((message) => ({
-          role: message.role,
-          content: message.content
-        })),
-        [
-          {
-            role: 'user',
-            content: 'Refine the sprint plan.'
-          },
-          {
-            role: 'assistant',
-            content: 'I updated the sprint plan note.'
-          }
-        ]
-      );
-    } finally {
-      verificationDatabase.close();
-    }
+    const repository = new ChatSessionRepository(server.database, { now: () => NOW });
+    assert.equal(repository.getSessionById('session-expired'), null);
+    assert.deepEqual(repository.getSessionById('session-123'), {
+      id: 'session-123',
+      name: null,
+      lastActivityAt: NOW
+    });
+    assert.deepEqual(
+      repository.getRecentMessages('session-123', 10).map((message) => ({
+        role: message.role,
+        content: message.content,
+        createdAt: message.createdAt
+      })),
+      [
+        {
+          role: 'user',
+          content: 'Refine the sprint plan.',
+          createdAt: NOW
+        },
+        {
+          role: 'assistant',
+          content: 'I updated the sprint plan note.',
+          createdAt: NOW
+        }
+      ]
+    );
 
     await request(server.app)
       .post('/api/chat')
