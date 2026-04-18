@@ -6,10 +6,9 @@ import test from 'node:test';
 
 import { initializeSqliteDatabase, openSqliteDatabase } from '../src/db/sqlite';
 import { createNoteTools } from '../src/langchain';
-import { NotesRepository, type Note } from '../src/notes-repository';
-import { NotFoundError } from '../src/notes-repository';
+import { NotesRepository, type Note, NotFoundError } from '../src/notes-repository';
 
-test('LangChain note tools create, get, and update notes', async () => {
+test('LangChain note tools create, get, list, and update notes', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-tools-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -76,6 +75,79 @@ test('LangChain note tools create, get, and update notes', async () => {
   }
 });
 
+test('listNotesTool returns an empty list for an empty repository', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-empty-list-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+  const tools = createNoteTools(repository);
+
+  try {
+    const listed = await tools.listNotesTool.invoke({});
+
+    assert.deepEqual(listed, {
+      notes: []
+    });
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('createNoteTool rejects blank titles before repository access', async () => {
+  let createCalls = 0;
+  const tools = createNoteTools({
+    createNote() {
+      createCalls += 1;
+      return { id: 1, title: 'x', content: 'y' };
+    },
+    getNoteById() {
+      throw new Error('not used');
+    },
+    updateNote() {
+      throw new Error('not used');
+    },
+    listNotes() {
+      throw new Error('not used');
+    }
+  });
+
+  await assert.rejects(
+    () => tools.createNoteTool.invoke({ title: '   ', content: 'Body' })
+  );
+
+  assert.equal(createCalls, 0);
+});
+
+test('updateNoteTool surfaces repository errors correctly', async () => {
+  const error = new Error('database exploded');
+  const tools = createNoteTools({
+    createNote() {
+      throw new Error('not used');
+    },
+    getNoteById() {
+      throw new Error('not used');
+    },
+    updateNote() {
+      throw error;
+    },
+    listNotes() {
+      throw new Error('not used');
+    }
+  });
+
+  await assert.rejects(
+    () =>
+      tools.updateNoteTool.invoke({
+        id: 1,
+        title: 'Sprint plan v2',
+        content: 'Updated body'
+      }),
+    /database exploded/
+  );
+});
+
 test('getNoteTool surfaces not found errors from the repository layer', async () => {
   const tools = createNoteTools({
     createNote() {
@@ -96,29 +168,4 @@ test('getNoteTool surfaces not found errors from the repository layer', async ()
     () => tools.getNoteTool.invoke({ id: 99 }),
     NotFoundError
   );
-});
-
-test('LangChain note tools reject invalid input before repository access', async () => {
-  let createCalls = 0;
-  const tools = createNoteTools({
-    createNote() {
-      createCalls += 1;
-      return { id: 1, title: 'x', content: 'y' };
-    },
-    getNoteById() {
-      throw new Error('not used');
-    },
-    updateNote() {
-      throw new Error('not used');
-    },
-    listNotes() {
-      throw new Error('not used');
-    }
-  });
-
-  await assert.rejects(
-    () => tools.createNoteTool.invoke({ title: '', content: 'Body' })
-  );
-
-  assert.equal(createCalls, 0);
 });
