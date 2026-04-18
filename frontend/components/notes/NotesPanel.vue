@@ -8,9 +8,11 @@ const props = withDefaults(
     loading: boolean;
     errorMessage: string;
     mutating?: boolean;
+    canDelete?: boolean;
   }>(),
   {
-    mutating: false
+    mutating: false,
+    canDelete: false
   }
 );
 
@@ -34,6 +36,7 @@ const emit = defineEmits<{
             <h3>{{ props.note.title }}</h3>
 
             <button
+              v-if="props.canDelete"
               type="button"
               class="delete-button"
               :disabled="props.mutating"

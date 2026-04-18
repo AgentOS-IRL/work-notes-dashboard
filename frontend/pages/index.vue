@@ -88,6 +88,7 @@ function toggleWorkspaceMode() {
           :loading="loading"
           :error-message="errorMessage"
           :mutating="saving"
+          :can-delete="workspaceMode === 'explore-notes'"
           @delete="handleDeleteNote"
         />
       </div>

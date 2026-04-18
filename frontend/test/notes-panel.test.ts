@@ -24,7 +24,8 @@ describe('NotesPanel', () => {
         },
         loading: false,
         errorMessage: '',
-        mutating: false
+        mutating: false,
+        canDelete: true
       },
       global: {
         stubs: {
@@ -53,7 +54,8 @@ describe('NotesPanel', () => {
         },
         loading: false,
         errorMessage: '',
-        mutating: true
+        mutating: true,
+        canDelete: true
       },
       global: {
         stubs: {
@@ -81,11 +83,39 @@ describe('NotesPanel', () => {
         },
         loading: true,
         errorMessage: '',
-        mutating: false
+        mutating: false,
+        canDelete: true
       }
     });
 
     expect(wrapper.find('.delete-button').exists()).toBe(false);
     expect(wrapper.text()).toContain('Loading...');
+  });
+
+  it('keeps the delete action hidden when deletion is not allowed', () => {
+    const wrapper = mount(NotesPanel, {
+      props: {
+        note: {
+          id: 13,
+          title: 'Chat-first note',
+          content: 'Body'
+        },
+        loading: false,
+        errorMessage: '',
+        mutating: false,
+        canDelete: false
+      },
+      global: {
+        stubs: {
+          MarkdownRenderer: {
+            props: ['content'],
+            template: '<div class="markdown-body">{{ content }}</div>'
+          }
+        }
+      }
+    });
+
+    expect(wrapper.find('.delete-button').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Chat-first note');
   });
 });

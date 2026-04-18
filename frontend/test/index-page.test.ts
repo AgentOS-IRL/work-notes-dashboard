@@ -56,6 +56,7 @@ describe('index page', () => {
     expect(wrapper.text()).toContain('Explore');
     expect(wrapper.text()).toContain('Sprint plan');
     expect(wrapper.text()).toContain('Outline milestones');
+    expect(wrapper.find('.delete-button').exists()).toBe(false);
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
@@ -69,6 +70,7 @@ describe('index page', () => {
 
     expect(wrapper.find('.note-meta h3').text()).toBe('Retro');
     expect(wrapper.find('.markdown-body h1').text()).toBe('Retro');
+    expect(wrapper.get('.delete-button').text()).toBe('Delete note');
 
     await wrapper.get('.delete-button').trigger('click');
     await flushPromises();
