@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Work Notes Dashboard favicon">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#182033" />
+      <stop offset="1" stop-color="#0a0f19" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bg)" stroke="#3c8cff" stroke-width="2" />
+  <path
+    d="M14 19l7 26h6l5-16 5 16h6l7-26h-6l-4 17-5-17h-6l-5 17-4-17z"
+    fill="#62d0ff"
+  />
+  <circle cx="48" cy="17" r="4" fill="#86efac" />
+</svg>
