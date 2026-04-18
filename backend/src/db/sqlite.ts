@@ -22,7 +22,8 @@ export function initializeSqliteDatabase(database: SqliteDatabase) {
 
     CREATE TABLE IF NOT EXISTS chat_sessions (
       id TEXT PRIMARY KEY,
-      name TEXT
+      name TEXT,
+      lastActivityAt INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS chat_messages (
@@ -30,7 +31,14 @@ export function initializeSqliteDatabase(database: SqliteDatabase) {
       sessionId TEXT NOT NULL,
       role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
       content TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
       FOREIGN KEY (sessionId) REFERENCES chat_sessions(id) ON DELETE CASCADE
     );
+
+    CREATE INDEX IF NOT EXISTS idx_chat_sessions_last_activity_at
+      ON chat_sessions(lastActivityAt);
+
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at
+      ON chat_messages(createdAt);
   `);
 }

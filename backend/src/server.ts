@@ -13,6 +13,7 @@ import { NotesRepository } from './notes-repository';
 import { resolveDatabasePath } from './config';
 import type { ConversationService } from './langchain';
 import type { ChatSessionService } from './chat-session-service';
+import type { ChatSessionRepositoryOptions } from './chat-session-repository';
 
 export function createServer(options: {
   port?: number;
@@ -20,6 +21,7 @@ export function createServer(options: {
   frontendDistPath?: string;
   databasePath?: string;
   conversationService?: ConversationService;
+  chatSessionRepositoryOptions?: ChatSessionRepositoryOptions;
 } = {}) {
   const app = express();
   const port = Number(options.port ?? process.env.PORT ?? 3000);
@@ -29,9 +31,18 @@ export function createServer(options: {
   const database = openSqliteDatabase(databasePath);
   initializeSqliteDatabase(database);
   const notesRepository = new NotesRepository(database);
-  const chatSessionRepository = new ChatSessionRepository(database);
+  const chatSessionRepository = new ChatSessionRepository(
+    database,
+    options.chatSessionRepositoryOptions
+  );
   let conversationService = options.conversationService ?? null;
   let chatSessionService: ChatSessionService | null = null;
+
+  try {
+    chatSessionRepository.cleanupExpiredData();
+  } catch {
+    // Startup cleanup is best-effort and should not block the server.
+  }
 
   function getConversationService() {
     if (!conversationService) {
