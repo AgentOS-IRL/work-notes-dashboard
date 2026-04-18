@@ -198,3 +198,48 @@ test('chat session service keeps the chat response working when naming fails', a
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test('chat session service does not persist a user turn when reply generation fails', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-service-reply-fail-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new ChatSessionRepository(database);
+
+  const service = createChatSessionService({
+    repository,
+    conversationService: {
+      async replyToConversation() {
+        throw new Error('Upstream timeout.');
+      }
+    },
+    generateSessionName: async () => {
+      throw new Error('This should not be called.');
+    }
+  });
+
+  try {
+    await assert.rejects(
+      service.replyToConversation({
+        sessionId: 'session-timeout',
+        messages: [
+          {
+            role: 'user',
+            content: 'Draft a summary.'
+          }
+        ]
+      }),
+      /Upstream timeout\./
+    );
+
+    assert.equal(repository.getSessionById('session-timeout'), null);
+    assert.throws(() => repository.countUserTurns('session-timeout'), /Session session-timeout was not found\./);
+    assert.throws(
+      () => repository.getRecentMessages('session-timeout', 10),
+      /Session session-timeout was not found\./
+    );
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});

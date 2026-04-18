@@ -26,21 +26,23 @@ export function createChatSessionService(options: {
 
   return {
     async replyToConversation(request: ChatSessionRequest): Promise<ChatResponse> {
-      const session = options.repository.createOrEnsureSession(request.sessionId);
       const latestMessage = request.messages.at(-1);
 
       if (!latestMessage || latestMessage.role !== 'user') {
         throw new ValidationError('A user message must be the last message in the session request.');
       }
 
-      options.repository.insertUserMessage(session.id, latestMessage.content);
-
       const response = await options.conversationService.replyToConversation({
         messages: request.messages
       });
 
-      options.repository.insertAssistantMessage(session.id, response.assistantMessage.content);
+      const persistedTurn = options.repository.recordConversationTurn(
+        request.sessionId,
+        latestMessage.content,
+        response.assistantMessage.content
+      );
 
+      const session = persistedTurn.session;
       const userTurnCount = options.repository.countUserTurns(session.id);
       if (session.name === null && userTurnCount >= nameAfterUserMessages) {
         try {

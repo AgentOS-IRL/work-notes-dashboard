@@ -85,6 +85,43 @@ export class ChatSessionRepository {
     return this.insertMessage(sessionId, 'assistant', content);
   }
 
+  recordConversationTurn(
+    sessionId: string,
+    userContent: string,
+    assistantContent: string
+  ): {
+    session: ChatSession;
+    userMessage: ChatMessage;
+    assistantMessage: ChatMessage;
+  } {
+    const normalizedSessionId = assertSessionId(sessionId);
+    const normalizedUserContent = normalizeMessageContent(userContent);
+    const normalizedAssistantContent = normalizeMessageContent(assistantContent);
+
+    const transaction = this.database.transaction(() => {
+      this.createOrEnsureSession(normalizedSessionId);
+
+      const userMessage = this.insertMessage(
+        normalizedSessionId,
+        'user',
+        normalizedUserContent
+      );
+      const assistantMessage = this.insertMessage(
+        normalizedSessionId,
+        'assistant',
+        normalizedAssistantContent
+      );
+
+      return {
+        session: this.requireSession(normalizedSessionId),
+        userMessage,
+        assistantMessage
+      };
+    });
+
+    return transaction();
+  }
+
   countUserTurns(sessionId: string): number {
     const normalizedSessionId = assertSessionId(sessionId);
     this.requireSession(normalizedSessionId);
