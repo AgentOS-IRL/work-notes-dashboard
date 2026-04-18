@@ -24,7 +24,8 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
-        '005_add_chat_session_tool_calls.sql'
+        '005_add_chat_session_tool_calls.sql',
+        '006_add_chat_message_tool_calls.sql'
       ]
     );
 
@@ -62,7 +63,18 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata',
+      'metadata'
+    ]);
+
+    const chatMessageColumns = database
+      .prepare('PRAGMA table_info(chat_messages)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(chatMessageColumns.map((column) => column.name), [
+      'id',
+      'sessionId',
+      'role',
+      'content',
+      'createdAt',
       'toolCalls'
     ]);
   } finally {
@@ -93,7 +105,8 @@ test('initializeSqliteDatabase does not reapply migrations on a second startup',
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
-        '005_add_chat_session_tool_calls.sql'
+        '005_add_chat_session_tool_calls.sql',
+        '006_add_chat_message_tool_calls.sql'
       ]
     );
     assert.deepEqual(
@@ -152,8 +165,7 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata',
-      'toolCalls'
+      'metadata'
     ]);
 
     const messageColumns = database
@@ -164,7 +176,8 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
       'sessionId',
       'role',
       'content',
-      'createdAt'
+      'createdAt',
+      'toolCalls'
     ]);
 
     const noteColumns = database
@@ -186,7 +199,8 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
-        '005_add_chat_session_tool_calls.sql'
+        '005_add_chat_session_tool_calls.sql',
+        '006_add_chat_message_tool_calls.sql'
       ]
     );
 
@@ -256,8 +270,7 @@ test('initializeSqliteDatabase repairs a partially migrated chat session metadat
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata',
-      'toolCalls'
+      'metadata'
     ]);
 
     assert.deepEqual(
@@ -270,7 +283,8 @@ test('initializeSqliteDatabase repairs a partially migrated chat session metadat
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
-        '005_add_chat_session_tool_calls.sql'
+        '005_add_chat_session_tool_calls.sql',
+        '006_add_chat_message_tool_calls.sql'
       ]
     );
 

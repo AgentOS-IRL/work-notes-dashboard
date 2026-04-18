@@ -396,7 +396,31 @@ test('chat session service persists created and updated note metadata', async ()
       created: [10, 11],
       updated: [11, 12]
     });
-    assert.deepEqual(repository.getSessionById('session-metadata')?.toolCalls, [
+    assert.deepEqual(repository.getRecentMessages('session-metadata', 10).map((message) => ({
+      role: message.role,
+      content: message.content,
+      toolCalls: message.toolCalls
+    })), [
+      {
+        role: 'user',
+        content: 'Create and update the note.',
+        toolCalls: []
+      },
+      {
+        role: 'assistant',
+        content: 'Created and updated notes.',
+        toolCalls: [
+          {
+            id: 'call-1',
+            name: 'create_note',
+            args: {
+              title: 'Session summary'
+            }
+          }
+        ]
+      }
+    ]);
+    assert.deepEqual(repository.getRecentMessages('session-metadata', 10)[1].toolCalls, [
       {
         id: 'call-1',
         name: 'create_note',

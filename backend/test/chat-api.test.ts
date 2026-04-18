@@ -138,33 +138,35 @@ test('chat API returns assistant replies and note change metadata', async () => 
       metadata: {
         created: [1],
         updated: [1]
-      },
-      toolCalls: [
-        {
-          id: 'call-1',
-          name: 'update_note',
-          args: {
-            id: 1
-          }
-        }
-      ]
+      }
     });
     assert.deepEqual(
       repository.getRecentMessages('session-123', 10).map((message) => ({
         role: message.role,
         content: message.content,
-        createdAt: message.createdAt
+        createdAt: message.createdAt,
+        toolCalls: message.toolCalls
       })),
       [
         {
           role: 'user',
           content: 'Refine the sprint plan.',
-          createdAt: NOW
+          createdAt: NOW,
+          toolCalls: []
         },
         {
           role: 'assistant',
           content: 'I updated the sprint plan note.',
-          createdAt: NOW
+          createdAt: NOW,
+          toolCalls: [
+            {
+              id: 'call-1',
+              name: 'update_note',
+              args: {
+                id: 1
+              }
+            }
+          ]
         }
       ]
     );

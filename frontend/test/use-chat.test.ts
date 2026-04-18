@@ -99,12 +99,14 @@ describe('useChat', () => {
             {
               id: 1,
               role: 'user',
-              content: 'Draft a weekly update.'
+              content: 'Draft a weekly update.',
+              toolCalls: []
             },
             {
               id: 2,
               role: 'assistant',
-              content: 'Here is a draft.'
+              content: 'Here is a draft.',
+              toolCalls: []
             }
           ]
         })
@@ -187,23 +189,26 @@ describe('useChat', () => {
     );
     const requestBody = JSON.parse(postCall?.[1]?.body as string) as {
       sessionId: string;
-      messages: Array<{ role: string; content: string }>;
+      messages: Array<{ role: string; content: string; toolCalls: unknown[] }>;
     };
 
     expect(requestBody.sessionId).toBe('session-1');
     expect(requestBody.messages).toHaveLength(3);
     expect(requestBody.messages[0]).toMatchObject({
       role: 'user',
-      content: 'Draft a weekly update.'
+      content: 'Draft a weekly update.',
+      toolCalls: []
     });
     expect(requestBody.messages[2]).toMatchObject({
       role: 'user',
-      content: 'Refine the sprint plan.'
+      content: 'Refine the sprint plan.',
+      toolCalls: []
     });
     expect(chat.messages.value).toHaveLength(4);
     expect(chat.messages.value.at(-1)).toMatchObject({
       role: 'assistant',
-      content: 'I refined the sprint plan.'
+      content: 'I refined the sprint plan.',
+      toolCalls: []
     });
     expect(chat.sessions.value[0]).toMatchObject({
       metadata: {
@@ -383,7 +388,8 @@ describe('useChat', () => {
       {
         id: 1,
         role: 'user',
-        content: 'Existing message'
+        content: 'Existing message',
+        toolCalls: []
       }
     ];
 

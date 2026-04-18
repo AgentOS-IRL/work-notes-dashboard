@@ -7,6 +7,7 @@ export interface ChatTurn {
 
 export interface ChatMessage extends ChatTurn {
   id: number;
+  toolCalls: ChatToolCall[];
 }
 
 export interface ChatRequest {
@@ -39,7 +40,6 @@ export interface ChatSessionDetail {
   createdAt: number;
   lastActivityAt: number;
   metadata: ChatSessionMetadata;
-  toolCalls: ChatToolCall[];
 }
 
 export interface ChatSessionDetailResponse {

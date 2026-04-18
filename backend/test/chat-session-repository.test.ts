@@ -39,7 +39,8 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
-        '005_add_chat_session_tool_calls.sql'
+        '005_add_chat_session_tool_calls.sql',
+        '006_add_chat_message_tool_calls.sql'
       ]
     );
 
@@ -51,8 +52,7 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata',
-      'toolCalls'
+      'metadata'
     ]);
 
     const messageColumns = database
@@ -63,7 +63,8 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
       'sessionId',
       'role',
       'content',
-      'createdAt'
+      'createdAt',
+      'toolCalls'
     ]);
 
     const sessionIndexes = database
@@ -133,8 +134,7 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata',
-      'toolCalls'
+      'metadata'
     ]);
 
     const messageColumns = database
@@ -145,7 +145,8 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
       'sessionId',
       'role',
       'content',
-      'createdAt'
+      'createdAt',
+      'toolCalls'
     ]);
     assert.deepEqual(
       database
@@ -157,7 +158,8 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
-        '005_add_chat_session_tool_calls.sql'
+        '005_add_chat_session_tool_calls.sql',
+        '006_add_chat_message_tool_calls.sql'
       ]
     );
 
@@ -171,7 +173,6 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
       created: [],
       updated: []
     });
-    assert.deepEqual(session?.toolCalls, []);
     assert.ok((session?.lastActivityAt ?? 0) > 0);
     assert.equal(session?.createdAt, session?.lastActivityAt);
 
@@ -179,6 +180,7 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
     assert.equal(messages.length, 1);
     assert.equal(messages[0].content, 'Legacy message');
     assert.equal(typeof messages[0].createdAt, 'number');
+    assert.deepEqual(messages[0].toolCalls, []);
     assert.ok(messages[0].createdAt > 0);
   } finally {
     database.close();
@@ -203,8 +205,7 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       metadata: {
         created: [],
         updated: []
-      },
-      toolCalls: []
+      }
     });
 
     const userMessage = repository.insertUserMessage('session-123', 'Draft a weekly update.');
@@ -233,8 +234,7 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       metadata: {
         created: [],
         updated: []
-      },
-      toolCalls: []
+      }
     });
     assert.deepEqual(repository.getSessionById('session-123'), renamed);
 
@@ -279,7 +279,7 @@ test('ChatSessionRepository records assistant tool calls in conversation order',
       ]
     );
 
-    assert.deepEqual(firstTurn.session.toolCalls, [
+    assert.deepEqual(firstTurn.assistantMessage.toolCalls, [
       {
         id: 'call-1',
         name: 'create_note',
@@ -305,14 +305,7 @@ test('ChatSessionRepository records assistant tool calls in conversation order',
       ]
     );
 
-    assert.deepEqual(secondTurn.session.toolCalls, [
-      {
-        id: 'call-1',
-        name: 'create_note',
-        args: {
-          title: 'Weekly update'
-        }
-      },
+    assert.deepEqual(secondTurn.assistantMessage.toolCalls, [
       {
         id: 'call-2',
         name: 'update_note',
@@ -322,23 +315,52 @@ test('ChatSessionRepository records assistant tool calls in conversation order',
         }
       }
     ]);
-    assert.deepEqual(repository.getSessionById('session-123')?.toolCalls, [
-      {
-        id: 'call-1',
-        name: 'create_note',
-        args: {
-          title: 'Weekly update'
+    assert.deepEqual(
+      repository.getRecentMessages('session-123', 10).map((message) => ({
+        role: message.role,
+        content: message.content,
+        toolCalls: message.toolCalls
+      })),
+      [
+        {
+          role: 'user',
+          content: 'Draft a weekly update.',
+          toolCalls: []
+        },
+        {
+          role: 'assistant',
+          content: 'I used one tool.',
+          toolCalls: [
+            {
+              id: 'call-1',
+              name: 'create_note',
+              args: {
+                title: 'Weekly update'
+              }
+            }
+          ]
+        },
+        {
+          role: 'user',
+          content: 'Refine the note.',
+          toolCalls: []
+        },
+        {
+          role: 'assistant',
+          content: 'I used another tool.',
+          toolCalls: [
+            {
+              id: 'call-2',
+              name: 'update_note',
+              args: {
+                id: 1,
+                title: 'Weekly update refined'
+              }
+            }
+          ]
         }
-      },
-      {
-        id: 'call-2',
-        name: 'update_note',
-        args: {
-          id: 1,
-          title: 'Weekly update refined'
-        }
-      }
-    ]);
+      ]
+    );
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -380,8 +402,7 @@ test('ChatSessionRepository normalizes legacy session metadata rows', () => {
       metadata: {
         created: [1, 2],
         updated: [2, 3]
-      },
-      toolCalls: []
+      }
     });
 
     assert.deepEqual(
@@ -501,23 +522,27 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
       repository.getTranscript('session-middle').map((message) => ({
         role: message.role,
         content: message.content,
-        createdAt: message.createdAt
+        createdAt: message.createdAt,
+        toolCalls: message.toolCalls
       })),
       [
         {
           role: 'user',
           content: 'First',
-          createdAt: NOW - 2_000
+          createdAt: NOW - 2_000,
+          toolCalls: []
         },
         {
           role: 'assistant',
           content: 'Second',
-          createdAt: NOW - 1_500
+          createdAt: NOW - 1_500,
+          toolCalls: []
         },
         {
           role: 'user',
           content: 'Third',
-          createdAt: NOW - 1_000
+          createdAt: NOW - 1_000,
+          toolCalls: []
         }
       ]
     );
@@ -526,13 +551,15 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
       repository.getTranscript('session-retained').map((message) => ({
         role: message.role,
         content: message.content,
-        createdAt: message.createdAt
+        createdAt: message.createdAt,
+        toolCalls: message.toolCalls
       })),
       [
         {
           role: 'assistant',
           content: 'Fresh turn',
-          createdAt: NOW - 500
+          createdAt: NOW - 500,
+          toolCalls: []
         }
       ]
     );

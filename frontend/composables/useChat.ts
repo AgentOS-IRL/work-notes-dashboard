@@ -168,7 +168,8 @@ export function useChat(options: {
     const userMessage: ChatMessage = {
       id: nextMessageId,
       role: 'user',
-      content: trimmed
+      content: trimmed,
+      toolCalls: []
     };
     nextMessageId += 1;
 
@@ -190,7 +191,8 @@ export function useChat(options: {
       const assistantMessage: ChatMessage = {
         id: nextMessageId,
         role: response.assistantMessage.role,
-        content: response.assistantMessage.content
+        content: response.assistantMessage.content,
+        toolCalls: response.toolCalls
       };
       nextMessageId += 1;
 

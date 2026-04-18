@@ -32,27 +32,36 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
   initializeSqliteDatabase(database);
   database
     .prepare(
-      'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata, toolCalls) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, ?, ?, ?, ?)'
     )
     .run(
       'session-1',
       'Named session',
       NOW - 2_000,
       NOW - 1_000,
-      '{"created":[1],"updated":[1,2]}',
-      '[{"id":"call-1","name":"create_note","args":{"title":"Sprint plan"}}]'
+      '{"created":[1],"updated":[1,2]}'
     );
   database
     .prepare(
-      'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata, toolCalls) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, ?, ?, ?, ?)'
     )
-    .run('session-2', null, NOW - 4_000, NOW - 2_000, '{"created":[],"updated":[3]}', null);
+    .run('session-2', null, NOW - 4_000, NOW - 2_000, '{"created":[],"updated":[3]}');
   database
-    .prepare('INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)')
-    .run('session-2', 'user', 'Draft a note.', NOW - 4_000);
+    .prepare(
+      'INSERT INTO chat_messages (sessionId, role, content, createdAt, toolCalls) VALUES (?, ?, ?, ?, ?)'
+    )
+    .run('session-2', 'user', 'Draft a note.', NOW - 4_000, null);
   database
-    .prepare('INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)')
-    .run('session-2', 'assistant', 'Here is a draft.', NOW - 3_500);
+    .prepare(
+      'INSERT INTO chat_messages (sessionId, role, content, createdAt, toolCalls) VALUES (?, ?, ?, ?, ?)'
+    )
+    .run(
+      'session-2',
+      'assistant',
+      'Here is a draft.',
+      NOW - 3_500,
+      '[{"id":"call-1","name":"create_note","args":{"title":"Sprint plan"}}]'
+    );
   database.close();
 
   const { tempRoot: frontendRoot, frontendDistPath } = createTempFrontendDist();
@@ -108,8 +117,7 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
             metadata: {
               created: [],
               updated: [3]
-            },
-            toolCalls: []
+            }
           },
           messages: [
             {
@@ -117,14 +125,24 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
               sessionId: 'session-2',
               role: 'user',
               content: 'Draft a note.',
-              createdAt: NOW - 4_000
+              createdAt: NOW - 4_000,
+              toolCalls: []
             },
             {
               id: 2,
               sessionId: 'session-2',
               role: 'assistant',
               content: 'Here is a draft.',
-              createdAt: NOW - 3_500
+              createdAt: NOW - 3_500,
+              toolCalls: [
+                {
+                  id: 'call-1',
+                  name: 'create_note',
+                  args: {
+                    title: 'Sprint plan'
+                  }
+                }
+              ]
             }
           ]
         });

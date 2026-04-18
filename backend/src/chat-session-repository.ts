@@ -10,7 +10,6 @@ export interface ChatSession {
   createdAt: number;
   lastActivityAt: number;
   metadata: ChatSessionMetadata;
-  toolCalls: ChatToolCall[];
 }
 
 export interface ChatSessionSummary {
@@ -32,6 +31,7 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: number;
+  toolCalls: ChatToolCall[];
 }
 
 export interface ChatSessionRepositoryOptions {
@@ -71,8 +71,7 @@ function toChatSession(row: unknown): ChatSession {
     name: session.name ?? null,
     createdAt: session.createdAt,
     lastActivityAt: session.lastActivityAt,
-    metadata: normalizeChatSessionMetadata(session.metadata),
-    toolCalls: normalizeChatSessionToolCalls(session.toolCalls)
+    metadata: normalizeChatSessionMetadata(session.metadata)
   };
 }
 
@@ -160,7 +159,7 @@ function serializeChatSessionMetadata(metadata: ChatSessionMetadata) {
   return JSON.stringify(normalizeChatSessionMetadata(metadata));
 }
 
-function normalizeChatSessionToolCalls(rawToolCalls: unknown): ChatToolCall[] {
+function normalizeChatToolCalls(rawToolCalls: unknown): ChatToolCall[] {
   const parsedToolCalls =
     typeof rawToolCalls === 'string'
       ? (() => {
@@ -193,8 +192,8 @@ function normalizeChatSessionToolCalls(rawToolCalls: unknown): ChatToolCall[] {
   return normalizedToolCalls;
 }
 
-function serializeChatSessionToolCalls(toolCalls: ChatToolCall[]) {
-  const normalizedToolCalls = normalizeChatSessionToolCalls(toolCalls);
+function serializeChatToolCalls(toolCalls: ChatToolCall[]) {
+  const normalizedToolCalls = normalizeChatToolCalls(toolCalls);
   if (normalizedToolCalls.length === 0) {
     return null;
   }
@@ -230,27 +229,20 @@ function mergeChatSessionMetadata(
   };
 }
 
-function mergeChatSessionToolCalls(
-  currentToolCalls: ChatToolCall[] | null,
-  nextToolCalls: ChatToolCall[]
-): ChatToolCall[] {
-  const current = currentToolCalls ?? [];
-  const normalizedNextToolCalls = normalizeChatSessionToolCalls(nextToolCalls);
-
-  if (normalizedNextToolCalls.length === 0) {
-    return current;
-  }
-
-  return [...current, ...normalizedNextToolCalls];
-}
-
 function toChatMessage(row: unknown): ChatMessage {
   const message = row as ChatMessage | undefined;
   if (!message) {
     throw new Error('Expected a chat message row.');
   }
 
-  return message;
+  return {
+    id: message.id,
+    sessionId: message.sessionId,
+    role: message.role,
+    content: message.content,
+    createdAt: message.createdAt,
+    toolCalls: normalizeChatToolCalls(message.toolCalls)
+  };
 }
 
 export class ChatSessionRepository {
@@ -285,7 +277,7 @@ export class ChatSessionRepository {
     const normalizedSessionId = assertSessionId(sessionId);
     const session = this.database
       .prepare(
-        'SELECT id, name, createdAt, lastActivityAt, metadata, toolCalls FROM chat_sessions WHERE id = ?'
+        'SELECT id, name, createdAt, lastActivityAt, metadata FROM chat_sessions WHERE id = ?'
       )
       .get(normalizedSessionId);
 
@@ -306,7 +298,7 @@ export class ChatSessionRepository {
     const timestamp = this.now();
     this.database
       .prepare(
-        'INSERT OR IGNORE INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata, toolCalls) VALUES (?, NULL, ?, ?, ?, NULL)'
+        'INSERT OR IGNORE INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, NULL, ?, ?, ?)'
       )
       .run(normalizedSessionId, timestamp, timestamp, serializeChatSessionMetadata(createEmptyChatSessionMetadata()));
 
@@ -317,8 +309,12 @@ export class ChatSessionRepository {
     return this.insertMessage(sessionId, 'user', content);
   }
 
-  insertAssistantMessage(sessionId: string, content: string): ChatMessage {
-    return this.insertMessage(sessionId, 'assistant', content);
+  insertAssistantMessage(
+    sessionId: string,
+    content: string,
+    toolCalls: ChatToolCall[] = []
+  ): ChatMessage {
+    return this.insertMessage(sessionId, 'assistant', content, toolCalls);
   }
 
   recordConversationTurn(
@@ -346,24 +342,9 @@ export class ChatSessionRepository {
       const assistantMessage = this.insertMessage(
         normalizedSessionId,
         'assistant',
-        normalizedAssistantContent
+        normalizedAssistantContent,
+        assistantToolCalls
       );
-      const normalizedAssistantToolCalls = normalizeChatSessionToolCalls(assistantToolCalls);
-      if (normalizedAssistantToolCalls.length > 0) {
-        const currentSession = this.requireSession(normalizedSessionId);
-        const mergedToolCalls = mergeChatSessionToolCalls(
-          currentSession.toolCalls,
-          normalizedAssistantToolCalls
-        );
-
-        const result = this.database
-          .prepare('UPDATE chat_sessions SET toolCalls = ? WHERE id = ?')
-          .run(serializeChatSessionToolCalls(mergedToolCalls), normalizedSessionId);
-
-        if (result.changes === 0) {
-          throw new NotFoundError(`Session ${normalizedSessionId} was not found.`);
-        }
-      }
 
       return {
         session: this.requireSession(normalizedSessionId),
@@ -423,7 +404,7 @@ export class ChatSessionRepository {
     const rows = this.database
       .prepare(
         `
-          SELECT id, sessionId, role, content, createdAt
+          SELECT id, sessionId, role, content, createdAt, toolCalls
           FROM chat_messages
           WHERE sessionId = ?
             AND createdAt >= ?
@@ -444,7 +425,7 @@ export class ChatSessionRepository {
     const rows = this.database
       .prepare(
         `
-          SELECT id, sessionId, role, content, createdAt
+          SELECT id, sessionId, role, content, createdAt, toolCalls
           FROM chat_messages
           WHERE sessionId = ?
             AND createdAt >= ?
@@ -517,21 +498,33 @@ export class ChatSessionRepository {
     return session;
   }
 
-  private insertMessage(sessionId: string, role: ChatRole, content: string): ChatMessage {
+  private insertMessage(
+    sessionId: string,
+    role: ChatRole,
+    content: string,
+    toolCalls: ChatToolCall[] = []
+  ): ChatMessage {
     const normalizedSessionId = assertSessionId(sessionId);
     const normalizedContent = normalizeMessageContent(content);
+    const normalizedToolCalls = normalizeChatToolCalls(toolCalls);
     const timestamp = this.now();
 
     this.createOrEnsureSession(normalizedSessionId);
 
     const result = this.database
       .prepare(
-        'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+        'INSERT INTO chat_messages (sessionId, role, content, createdAt, toolCalls) VALUES (?, ?, ?, ?, ?)'
       )
-      .run(normalizedSessionId, role, normalizedContent, timestamp);
+      .run(
+        normalizedSessionId,
+        role,
+        normalizedContent,
+        timestamp,
+        serializeChatToolCalls(normalizedToolCalls)
+      );
 
     const message = this.database
-      .prepare('SELECT id, sessionId, role, content, createdAt FROM chat_messages WHERE id = ?')
+      .prepare('SELECT id, sessionId, role, content, createdAt, toolCalls FROM chat_messages WHERE id = ?')
       .get(Number(result.lastInsertRowid));
 
     this.database
