@@ -234,6 +234,7 @@ export class ChatSessionRepository {
   getTranscript(sessionId: string): ChatMessage[] {
     const normalizedSessionId = assertSessionId(sessionId);
     this.requireSession(normalizedSessionId);
+    const cutoff = this.now() - this.retentionMs;
 
     const rows = this.database
       .prepare(
@@ -241,10 +242,11 @@ export class ChatSessionRepository {
           SELECT id, sessionId, role, content, createdAt
           FROM chat_messages
           WHERE sessionId = ?
+            AND createdAt >= ?
           ORDER BY createdAt ASC, id ASC
         `
       )
-      .all(normalizedSessionId) as ChatMessage[];
+      .all(normalizedSessionId, cutoff) as ChatMessage[];
 
     return rows.map((row) => toChatMessage(row));
   }

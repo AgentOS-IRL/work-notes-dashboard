@@ -232,4 +232,44 @@ describe('useChat', () => {
     expect(chat.messages.value).toHaveLength(0);
     expect(chat.draft.value).toBe('Hello');
   });
+
+  it('restores the previous session selection if loading a session fails', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Weekly update',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat();
+    await chat.loadSessions();
+
+    chat.sessionId.value = 'session-1';
+    chat.selectedSessionId.value = 'session-1';
+    chat.messages.value = [
+      {
+        id: 1,
+        role: 'user',
+        content: 'Existing message'
+      }
+    ];
+
+    await chat.loadSession('missing-session');
+
+    expect(chat.sessionId.value).toBe('session-1');
+    expect(chat.selectedSessionId.value).toBe('session-1');
+    expect(chat.messages.value).toHaveLength(1);
+    expect(chat.errorMessage.value).toBe('Request failed with status 503');
+  });
 });

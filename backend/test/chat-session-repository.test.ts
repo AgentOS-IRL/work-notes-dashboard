@@ -261,6 +261,22 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
       ]
     );
 
+    database
+      .prepare(
+        'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-retained', null, NOW - WEEK_MS, NOW);
+    database
+      .prepare(
+        'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-retained', 'user', 'Expired turn', NOW - WEEK_MS - 1);
+    database
+      .prepare(
+        'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-retained', 'assistant', 'Fresh turn', NOW - 500);
+
     assert.deepEqual(
       repository.getTranscript('session-middle').map((message) => ({
         role: message.role,
@@ -282,6 +298,21 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
           role: 'user',
           content: 'Third',
           createdAt: NOW - 1_000
+        }
+      ]
+    );
+
+    assert.deepEqual(
+      repository.getTranscript('session-retained').map((message) => ({
+        role: message.role,
+        content: message.content,
+        createdAt: message.createdAt
+      })),
+      [
+        {
+          role: 'assistant',
+          content: 'Fresh turn',
+          createdAt: NOW - 500
         }
       ]
     );

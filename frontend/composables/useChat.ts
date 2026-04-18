@@ -122,6 +122,8 @@ export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) =
       return;
     }
 
+    const previousSessionId = sessionId.value;
+    const previousSelectedSessionId = selectedSessionId.value;
     isLoadingSession.value = true;
     errorMessage.value = '';
 
@@ -140,6 +142,9 @@ export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) =
       nextMessageId = response.messages.reduce((maxId, message) => Math.max(maxId, message.id), 0) + 1;
       await refreshSessions();
     } catch (error) {
+      sessionId.value = previousSessionId;
+      selectedSessionId.value = previousSelectedSessionId;
+      syncSelectedSessionId();
       errorMessage.value = error instanceof Error ? error.message : 'Failed to load session.';
     } finally {
       isLoadingSession.value = false;
