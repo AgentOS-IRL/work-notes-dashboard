@@ -87,6 +87,17 @@ describe('index page', () => {
             role: 'assistant',
             content: 'I created a new weekly update note.'
           },
+          toolCalls: [
+            {
+              id: 'call-1',
+              type: 'function',
+              name: 'createNote',
+              arguments: {
+                title: 'Weekly update',
+                content: 'Draft content'
+              }
+            }
+          ],
           createdNoteIds: [3],
           updatedNoteIds: [3],
           changedNoteIds: [3],
@@ -139,6 +150,8 @@ describe('index page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('I created a new weekly update note.');
+    expect(wrapper.text()).toContain('createNote');
+    expect(wrapper.text()).toContain('Weekly update');
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();

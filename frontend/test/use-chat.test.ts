@@ -106,7 +106,16 @@ describe('useChat', () => {
               id: 2,
               role: 'assistant',
               content: 'Here is a draft.',
-              toolCalls: []
+              toolCalls: [
+                {
+                  id: 'call-1',
+                  type: 'function',
+                  name: 'createNote',
+                  arguments: {
+                    title: 'Weekly update'
+                  }
+                }
+              ]
             }
           ]
         })
@@ -133,7 +142,17 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I refined the sprint plan.'
           },
-          toolCalls: [],
+          toolCalls: [
+            {
+              id: 'call-2',
+              type: 'function',
+              name: 'updateNote',
+              arguments: {
+                id: 1,
+                title: 'Sprint plan'
+              }
+            }
+          ],
           createdNoteIds: [1],
           updatedNoteIds: [1],
           changedNoteIds: [1],
@@ -199,6 +218,20 @@ describe('useChat', () => {
       content: 'Draft a weekly update.',
       toolCalls: []
     });
+    expect(requestBody.messages[1]).toMatchObject({
+      role: 'assistant',
+      content: 'Here is a draft.',
+      toolCalls: [
+        {
+          id: 'call-1',
+          type: 'function',
+          name: 'createNote',
+          arguments: {
+            title: 'Weekly update'
+          }
+        }
+      ]
+    });
     expect(requestBody.messages[2]).toMatchObject({
       role: 'user',
       content: 'Refine the sprint plan.',
@@ -208,7 +241,17 @@ describe('useChat', () => {
     expect(chat.messages.value.at(-1)).toMatchObject({
       role: 'assistant',
       content: 'I refined the sprint plan.',
-      toolCalls: []
+      toolCalls: [
+        {
+          id: 'call-2',
+          type: 'function',
+          name: 'updateNote',
+          arguments: {
+            id: 1,
+            title: 'Sprint plan'
+          }
+        }
+      ]
     });
     expect(chat.sessions.value[0]).toMatchObject({
       metadata: {
