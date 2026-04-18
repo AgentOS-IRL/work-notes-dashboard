@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useChat } from '~/composables/useChat';
 
 const props = withDefaults(
@@ -28,33 +27,50 @@ const {
     emit('notes-changed', changedNoteIds);
   }
 });
-
-
 </script>
 
 <template>
-  <section class="chat-panel">
+  <section class="chat-panel" :class="{ compact: props.compact }">
     <header class="panel-header">
-      <h2>Chat</h2>
+      <div class="header-title">
+        <span class="window-controls" aria-hidden="true">
+          <span class="window-dot dot-red" />
+          <span class="window-dot dot-yellow" />
+          <span class="window-dot dot-green" />
+        </span>
+        <div class="header-copy">
+          <p class="eyebrow">terminal chat</p>
+          <h2>Chat log</h2>
+        </div>
+      </div>
+
+      <div class="header-status" aria-label="Chat status">
+        <span class="status-token">~/notes</span>
+        <span class="status-pill">{{ hasMessages ? 'session active' : 'ready' }}</span>
+      </div>
     </header>
 
     <div class="chat-frame">
-
-
-      <p v-if="errorMessage" class="message error-banner">{{ errorMessage }}</p>
+      <p v-if="errorMessage" class="terminal-alert">{{ errorMessage }}</p>
 
       <div class="message-stream" aria-live="polite">
+        <p v-if="!hasMessages" class="empty-state">No log entries yet. Run a prompt below.</p>
+
         <article
           v-for="message in messages"
           :key="message.id"
           class="message"
           :class="message.role"
         >
+          <div class="message-meta">
+            <span class="message-prefix">{{ message.role === 'user' ? '$' : '>' }}</span>
+            <span class="message-role">{{ message.role }}</span>
+          </div>
           <p>{{ message.content }}</p>
         </article>
       </div>
 
-      <div class="prompt-row">
+      <div v-if="!compact" class="prompt-row" aria-label="Suggested prompts">
         <button
           type="button"
           class="prompt-chip"
@@ -78,22 +94,29 @@ const {
         </button>
       </div>
 
-      <form class="composer" @submit.prevent="sendMessage">
+      <form v-if="!compact" class="composer" @submit.prevent="sendMessage">
         <label class="composer-label" for="chat-draft">
-          <textarea
-            id="chat-draft"
-            v-model="draft"
-            rows="4"
-            placeholder="Message..."
-          />
+          <span class="composer-hint">prompt</span>
+          <div class="composer-input">
+            <span class="prompt-symbol" aria-hidden="true">$</span>
+            <textarea
+              id="chat-draft"
+              v-model="draft"
+              rows="4"
+              placeholder="Ask the notes agent..."
+            />
+          </div>
         </label>
 
         <div class="composer-actions">
+          <p class="composer-hint">Enter to send, Shift+Enter for a new line.</p>
           <button class="send-button" type="submit" :disabled="isSending || draft.trim().length === 0">
-            Send
+            Run
           </button>
         </div>
       </form>
+
+      <p v-else class="collapsed-copy">Chat collapsed for browsing.</p>
     </div>
   </section>
 </template>
@@ -101,71 +124,131 @@ const {
 <style scoped>
 .chat-panel {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   align-content: start;
   min-height: 100%;
 }
 
 .panel-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding: 0 2px;
 }
 
-.eyebrow,
-.meta-title {
-  margin: 0 0 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-size: 0.72rem;
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.window-controls {
+  display: inline-flex;
+  gap: 6px;
+  flex: none;
+}
+
+.window-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: 0.9;
+}
+
+.dot-red {
+  background: #fb7185;
+}
+
+.dot-yellow {
+  background: #facc15;
+}
+
+.dot-green {
+  background: #34d399;
+}
+
+.header-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.eyebrow {
+  margin: 0;
   color: var(--muted-strong);
+  font: 600 0.72rem/1 var(--mono-font);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 h2 {
   margin: 0;
-  max-width: 22ch;
-  font-size: clamp(1.2rem, 1.6vw, 1.7rem);
-  line-height: 1.15;
+  font-size: clamp(1.15rem, 1.4vw, 1.5rem);
+  line-height: 1.1;
   letter-spacing: -0.04em;
 }
 
+.header-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.status-token,
+.status-pill,
+.message-role,
+.composer-hint,
+.collapsed-copy,
+.empty-state {
+  font-family: var(--mono-font);
+}
+
+.status-token,
 .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 9px 14px;
-  background: color-mix(in srgb, var(--panel-muted) 92%, transparent);
+  min-height: 30px;
+  padding: 0 10px;
   border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-muted) 88%, transparent);
   color: var(--text-strong);
-  font-size: 0.9rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status-token {
+  color: var(--accent);
 }
 
 .chat-frame {
   display: grid;
   gap: 14px;
   align-content: start;
-  padding: 20px;
-  border-radius: 24px;
+  padding: 18px;
+  border-radius: 18px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--panel-elevated) 95%, transparent), var(--surface)),
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-elevated) 88%, transparent), var(--surface)),
     var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   min-height: 0;
 }
 
-.chat-meta {
-  display: grid;
-  gap: 8px;
-}
-
-.meta-copy,
-.composer-hint,
-.collapsed-copy {
+.terminal-alert {
   margin: 0;
-  color: var(--muted);
+  padding: 12px 14px;
+  border-left: 3px solid color-mix(in srgb, #ef4444 70%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, #ef4444 12%, var(--panel-muted));
+  color: #fecaca;
+  font-family: var(--mono-font);
   line-height: 1.55;
 }
 
@@ -177,66 +260,72 @@ h2 {
   padding-right: 4px;
 }
 
-.message-stream.compact {
-  max-height: 220px;
+.empty-state {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 0.88rem;
+  line-height: 1.6;
 }
 
 .message {
   display: grid;
   gap: 8px;
-  max-width: 88%;
+  max-width: 100%;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid var(--border);
-  box-shadow: 0 12px 28px rgba(8, 12, 20, 0.28);
+  background: color-mix(in srgb, var(--panel-muted) 72%, transparent);
   animation: float-in 240ms ease;
 }
 
-.message.assistant {
-  background: color-mix(in srgb, var(--surface) 76%, var(--panel-muted));
-  justify-self: start;
+.message-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted-strong);
+  font-family: var(--mono-font);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.message-prefix {
+  color: var(--accent);
 }
 
 .message.user {
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #fff;
   justify-self: end;
-  border-color: transparent;
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel-muted));
 }
 
-.error-banner {
-  max-width: 100%;
-  margin: 0;
-  background: color-mix(in srgb, #dc2626 10%, var(--surface));
-  border-color: color-mix(in srgb, #dc2626 30%, var(--border));
-  color: #fca5a5;
+.message.user .message-meta {
+  justify-content: flex-end;
 }
 
-.message-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.78;
+.message.user .message-prefix {
+  color: var(--success);
 }
 
 .message p {
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.65;
+  white-space: pre-wrap;
 }
 
 .prompt-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .prompt-chip {
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-muted) 82%, transparent);
+  background: color-mix(in srgb, var(--panel-muted) 80%, transparent);
   color: var(--text);
-  padding: 10px 14px;
-  font-size: 0.92rem;
+  padding: 9px 12px;
+  font: 500 0.84rem/1 var(--mono-font);
   transition:
     transform 160ms ease,
     border-color 160ms ease,
@@ -246,13 +335,14 @@ h2 {
 .prompt-chip:hover,
 .prompt-chip:focus-visible {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--panel-elevated) 80%, transparent);
 }
 
 .composer {
   display: grid;
-  gap: 14px;
-  padding-top: 4px;
+  gap: 12px;
+  padding-top: 2px;
 }
 
 .composer-label {
@@ -260,9 +350,38 @@ h2 {
   gap: 8px;
 }
 
-.composer-label span {
+.composer-hint {
+  margin: 0;
   color: var(--muted-strong);
-  font-size: 0.9rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.composer-input {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel-muted) 88%, transparent);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.composer-input:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.prompt-symbol {
+  color: var(--accent);
+  font: 600 0.95rem/1 var(--mono-font);
+  padding-top: 4px;
 }
 
 textarea {
@@ -270,22 +389,13 @@ textarea {
   box-sizing: border-box;
   resize: vertical;
   min-height: 112px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--panel-muted) 86%, transparent);
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: var(--text);
   font: inherit;
   outline: none;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
-}
-
-textarea:focus-visible {
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+  line-height: 1.65;
 }
 
 .composer-actions {
@@ -296,26 +406,37 @@ textarea:focus-visible {
 }
 
 .send-button {
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
   border-radius: 999px;
-  padding: 12px 18px;
-  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
-  color: white;
-  font: inherit;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--panel-elevated) 72%, transparent);
+  color: var(--text-strong);
+  font: 600 0.88rem/1 var(--mono-font);
   cursor: pointer;
   transition:
     transform 160ms ease,
-    opacity 160ms ease;
+    border-color 160ms ease,
+    opacity 160ms ease,
+    background-color 160ms ease;
 }
 
 .send-button:hover:not(:disabled),
 .send-button:focus-visible:not(:disabled) {
   transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+  background: color-mix(in srgb, var(--panel-elevated) 88%, transparent);
 }
 
 .send-button:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+}
+
+.collapsed-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
 }
 
 @keyframes float-in {
@@ -337,12 +458,25 @@ textarea:focus-visible {
     align-items: stretch;
   }
 
-  .message {
-    max-width: 100%;
+  .header-status {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .message.user {
+    justify-self: stretch;
   }
 }
 
 .chat-panel.compact .chat-frame {
-  padding: 16px;
+  padding: 14px;
+}
+
+.chat-panel.compact .message-stream {
+  max-height: 260px;
+}
+
+.chat-panel.compact .panel-header {
+  gap: 10px;
 }
 </style>
