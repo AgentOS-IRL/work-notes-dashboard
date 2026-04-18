@@ -114,6 +114,29 @@ test('NotesRepository supports CRUD operations against SQLite', () => {
   }
 });
 
+test('NotesRepository returns paginated slices in id order', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-repo-page-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+
+  try {
+    const notes = [
+      repository.createNote({ title: 'Note 1', content: 'Body 1' }),
+      repository.createNote({ title: 'Note 2', content: 'Body 2' }),
+      repository.createNote({ title: 'Note 3', content: 'Body 3' })
+    ];
+
+    assert.deepEqual(repository.listNotesPage(2), notes.slice(0, 2));
+    assert.deepEqual(repository.listNotesPage(2, 1), notes.slice(1, 3));
+    assert.deepEqual(repository.listNotesPage(10, 2), notes.slice(2, 3));
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('NotesRepository validates input and missing rows', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-repo-invalid-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
@@ -147,6 +170,9 @@ test('NotesRepository validates input and missing rows', () => {
     );
 
     assert.equal(repository.getNoteById(1), null);
+
+    assert.throws(() => repository.listNotesPage(0), ValidationError);
+    assert.throws(() => repository.listNotesPage(1, -1), ValidationError);
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });

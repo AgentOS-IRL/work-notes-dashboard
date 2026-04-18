@@ -25,9 +25,15 @@ export class NotFoundError extends Error {
   readonly statusCode = 404;
 }
 
-function assertPositiveInteger(id: number) {
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new ValidationError('A valid note id is required.');
+function assertPositiveInteger(value: number, message = 'A valid note id is required.') {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new ValidationError(message);
+  }
+}
+
+function assertNonNegativeInteger(value: number, message: string) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new ValidationError(message);
   }
 }
 
@@ -161,6 +167,16 @@ export class NotesRepository {
     return this.database
       .prepare('SELECT id, title, content, metadata FROM notes ORDER BY id ASC')
       .all()
+      .map((row) => toNote(row));
+  }
+
+  listNotesPage(limit: number, offset = 0): Note[] {
+    assertPositiveInteger(limit, 'A valid note limit is required.');
+    assertNonNegativeInteger(offset, 'A valid note offset is required.');
+
+    return this.database
+      .prepare('SELECT id, title, content, metadata FROM notes ORDER BY id ASC LIMIT ? OFFSET ?')
+      .all(limit, offset)
       .map((row) => toNote(row));
   }
 

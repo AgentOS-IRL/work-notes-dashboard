@@ -4,7 +4,7 @@ import { NotFoundError, type Note, type NotesRepository } from '../notes-reposit
 
 type NoteToolRepository = Pick<
   NotesRepository,
-  'createNote' | 'getNoteById' | 'listNotes' | 'updateNote'
+  'createNote' | 'getNoteById' | 'listNotesPage' | 'updateNote'
 > &
   Partial<
     Pick<NotesRepository, 'createNoteForSession' | 'updateNoteForSession'>
@@ -70,13 +70,17 @@ export function createNoteTools(repository: NoteToolRepository, context: NoteToo
   );
 
   const listNotesTool = tool(
-    async () => {
-      return { notes: repository.listNotes() };
+    async ({ limit, offset }) => {
+      return { notes: repository.listNotesPage(limit, offset) };
     },
     {
       name: 'list_notes',
-      description: 'List the existing notes in the SQLite-backed notes store.',
-      schema: z.object({})
+      description:
+        'List a page of notes from the SQLite-backed notes store. Defaults to 10 notes and accepts offset-based paging for later pages.',
+      schema: z.object({
+        limit: z.number().int().positive().default(10).describe('The number of notes to return.'),
+        offset: z.number().int().min(0).default(0).describe('The zero-based note offset for paging.')
+      })
     }
   );
 

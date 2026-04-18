@@ -22,6 +22,13 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
       content: 'Initial body'
     });
 
+    for (let index = 2; index <= 12; index += 1) {
+      repository.createNote({
+        title: `Note ${index}`,
+        content: `Body ${index}`
+      });
+    }
+
     assert.deepEqual(created, {
       note: {
         id: 1,
@@ -60,6 +67,123 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
           metadata: {
             created: 'session-abc',
             updated: ['session-abc']
+          }
+        },
+        {
+          id: 2,
+          title: 'Note 2',
+          content: 'Body 2',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 3,
+          title: 'Note 3',
+          content: 'Body 3',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 4,
+          title: 'Note 4',
+          content: 'Body 4',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 5,
+          title: 'Note 5',
+          content: 'Body 5',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 6,
+          title: 'Note 6',
+          content: 'Body 6',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 7,
+          title: 'Note 7',
+          content: 'Body 7',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 8,
+          title: 'Note 8',
+          content: 'Body 8',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 9,
+          title: 'Note 9',
+          content: 'Body 9',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 10,
+          title: 'Note 10',
+          content: 'Body 10',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        }
+      ]
+    });
+
+    const paged = await tools.listNotesTool.invoke({
+      limit: 3,
+      offset: 8
+    });
+    assert.deepEqual(paged, {
+      notes: [
+        {
+          id: 9,
+          title: 'Note 9',
+          content: 'Body 9',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 10,
+          title: 'Note 10',
+          content: 'Body 10',
+          metadata: {
+            created: '',
+            updated: []
+          }
+        },
+        {
+          id: 11,
+          title: 'Note 11',
+          content: 'Body 11',
+          metadata: {
+            created: '',
+            updated: []
           }
         }
       ]
@@ -149,7 +273,7 @@ test('createNoteTool rejects blank titles before repository access', async () =>
     updateNote() {
       throw new Error('not used');
     },
-    listNotes() {
+    listNotesPage() {
       throw new Error('not used');
     },
     createNoteForSession() {
@@ -179,7 +303,7 @@ test('updateNoteTool surfaces repository errors correctly', async () => {
     updateNote() {
       throw error;
     },
-    listNotes() {
+    listNotesPage() {
       throw new Error('not used');
     },
     createNoteForSession() {
@@ -212,7 +336,7 @@ test('getNoteTool surfaces not found errors from the repository layer', async ()
     updateNote() {
       throw new Error('not used');
     },
-    listNotes() {
+    listNotesPage() {
       throw new Error('not used');
     },
     createNoteForSession() {

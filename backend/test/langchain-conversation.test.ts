@@ -24,6 +24,10 @@ test('conversation service uses note tools to inspect and update notes', async (
     title: 'Sprint plan',
     content: 'Draft the kickoff note.'
   });
+  repository.createNote({
+    title: 'Meeting notes',
+    content: 'A second note for paging.'
+  });
 
   const bindToolsCalls: string[][] = [];
   const invocationMessages: Array<Array<{ getType(): string; content?: unknown }>> = [];
@@ -47,7 +51,10 @@ test('conversation service uses note tools to inspect and update notes', async (
                 {
                   id: 'call-1',
                   name: 'list_notes',
-                  args: {}
+                  args: {
+                    limit: 1,
+                    offset: 1
+                  }
                 }
               ]
             });
@@ -60,9 +67,9 @@ test('conversation service uses note tools to inspect and update notes', async (
               JSON.stringify({
                 notes: [
                   {
-                    id: 1,
-                    title: 'Sprint plan',
-                    content: 'Draft the kickoff note.',
+                    id: 2,
+                    title: 'Meeting notes',
+                    content: 'A second note for paging.',
                     metadata: {
                       created: '',
                       updated: []
@@ -79,8 +86,8 @@ test('conversation service uses note tools to inspect and update notes', async (
                   id: 'call-2',
                   name: 'update_note',
                   args: {
-                    id: 1,
-                    title: 'Sprint plan refined',
+                    id: 2,
+                    title: 'Meeting notes refined',
                     content: 'Add a sharper project summary.'
                   }
                 }
@@ -93,8 +100,8 @@ test('conversation service uses note tools to inspect and update notes', async (
             String(messages[5].content),
             JSON.stringify({
               note: {
-                id: 1,
-                title: 'Sprint plan refined',
+                id: 2,
+                title: 'Meeting notes refined',
                 content: 'Add a sharper project summary.',
                 metadata: {
                   created: '',
@@ -133,8 +140,8 @@ test('conversation service uses note tools to inspect and update notes', async (
     assert.deepEqual(messageTypes(invocationMessages[2]), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
     assert.equal(response.notesChanged, true);
     assert.deepEqual(response.createdNoteIds, []);
-    assert.deepEqual(response.updatedNoteIds, [1]);
-    assert.deepEqual(response.changedNoteIds, [1]);
+    assert.deepEqual(response.updatedNoteIds, [2]);
+    assert.deepEqual(response.changedNoteIds, [2]);
     assert.deepEqual(response.openedNoteIds, []);
     assert.deepEqual(response.assistantMessage, {
       role: 'assistant',
@@ -144,25 +151,28 @@ test('conversation service uses note tools to inspect and update notes', async (
       {
         id: 'call-1',
         name: 'list_notes',
-        args: {}
+        args: {
+          limit: 1,
+          offset: 1
+        }
       },
       {
         id: 'call-2',
         name: 'update_note',
         args: {
-          id: 1,
-          title: 'Sprint plan refined',
+          id: 2,
+          title: 'Meeting notes refined',
           content: 'Add a sharper project summary.'
         }
       }
     ]);
     assert.deepEqual(repository.getNoteById(1), {
       id: 1,
-      title: 'Sprint plan refined',
-      content: 'Add a sharper project summary.',
+      title: 'Sprint plan',
+      content: 'Draft the kickoff note.',
       metadata: {
         created: '',
-        updated: ['session-abc']
+        updated: []
       }
     });
   } finally {
