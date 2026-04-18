@@ -244,6 +244,12 @@ describe('useChat', () => {
               name: 'Weekly update',
               createdAt: 1_700_000_000_000,
               lastActivityAt: 1_700_000_000_000
+            },
+            {
+              id: 'session-2',
+              name: 'Sprint notes',
+              createdAt: 1_700_000_100_000,
+              lastActivityAt: 1_700_000_100_000
             }
           ]
         })
@@ -256,7 +262,7 @@ describe('useChat', () => {
     await chat.loadSessions();
 
     chat.sessionId.value = 'session-1';
-    chat.selectedSessionId.value = 'session-1';
+    chat.selectedSessionId.value = 'session-2';
     chat.messages.value = [
       {
         id: 1,
@@ -265,7 +271,7 @@ describe('useChat', () => {
       }
     ];
 
-    await chat.loadSession('missing-session');
+    await chat.loadSession('session-2');
 
     expect(chat.sessionId.value).toBe('session-1');
     expect(chat.selectedSessionId.value).toBe('session-1');
