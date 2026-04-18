@@ -10,6 +10,10 @@ import { initializeSqliteDatabase, openSqliteDatabase } from '../src/db/sqlite';
 import { createConversationService } from '../src/langchain';
 import { NotesRepository } from '../src/notes-repository';
 
+function messageTypes(messages: Array<{ getType(): string }>) {
+  return messages.map((message) => message.getType());
+}
+
 test('conversation service uses note tools to inspect and update notes', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
@@ -22,7 +26,7 @@ test('conversation service uses note tools to inspect and update notes', async (
   });
 
   const bindToolsCalls: string[][] = [];
-  const invocationMessages: Array<Array<{ getType(): string }>> = [];
+  const invocationMessages: Array<Array<{ getType(): string; content?: unknown }>> = [];
   let invocationCount = 0;
 
   const model = {
@@ -30,13 +34,12 @@ test('conversation service uses note tools to inspect and update notes', async (
       bindToolsCalls.push(tools.map((tool) => tool.name ?? ''));
 
       return {
-        async invoke(messages: Array<{ getType(): string }>) {
+        async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
           invocationCount += 1;
           invocationMessages.push(messages);
 
           if (invocationCount === 1) {
-            assert.equal(messages[0].getType(), 'system');
-            assert.equal(messages[1].getType(), 'human');
+            assert.deepEqual(messageTypes(messages), ['system', 'human']);
 
             return new AIMessage({
               content: 'I will inspect the notes first.',
@@ -51,11 +54,22 @@ test('conversation service uses note tools to inspect and update notes', async (
           }
 
           if (invocationCount === 2) {
-            assert.equal(messages[2].getType(), 'ai');
-            assert.equal(messages[3].getType(), 'tool');
+            assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+            assert.equal(
+              String(messages[3].content),
+              JSON.stringify({
+                notes: [
+                  {
+                    id: 1,
+                    title: 'Sprint plan',
+                    content: 'Draft the kickoff note.'
+                  }
+                ]
+              })
+            );
 
             return new AIMessage({
-              content: '',
+              content: 'I found the note and will refine it.',
               tool_calls: [
                 {
                   id: 'call-2',
@@ -70,7 +84,21 @@ test('conversation service uses note tools to inspect and update notes', async (
             });
           }
 
-          return new AIMessage('Updated the sprint note.');
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
+          assert.equal(
+            String(messages[5].content),
+            JSON.stringify({
+              note: {
+                id: 1,
+                title: 'Sprint plan refined',
+                content: 'Add a sharper project summary.'
+              }
+            })
+          );
+
+          return new AIMessage({
+            content: 'Updated the sprint note.'
+          });
         }
       };
     }
@@ -91,6 +119,9 @@ test('conversation service uses note tools to inspect and update notes', async (
       ['create_note', 'get_note', 'list_notes', 'update_note']
     ]);
     assert.equal(invocationMessages.length, 3);
+    assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
+    assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
+    assert.deepEqual(messageTypes(invocationMessages[2]), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
     assert.equal(response.notesChanged, true);
     assert.deepEqual(response.changedNoteIds, [1]);
     assert.deepEqual(response.assistantMessage, {
@@ -98,6 +129,44 @@ test('conversation service uses note tools to inspect and update notes', async (
       content: 'Updated the sprint note.'
     });
     assert.equal(repository.getNoteById(1)?.title, 'Sprint plan refined');
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('conversation service rejects an empty assistant response before returning', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-empty-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+
+  const model = {
+    bindTools() {
+      return {
+        async invoke() {
+          return new AIMessage('   ');
+        }
+      };
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+
+    await assert.rejects(
+      () =>
+        service.replyToConversation({
+          messages: [
+            {
+              role: 'user',
+              content: 'Say nothing.'
+            }
+          ]
+        }),
+      /empty response/
+    );
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });

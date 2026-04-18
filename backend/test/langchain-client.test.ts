@@ -19,13 +19,13 @@ test('resolveBedrockConfig reads Bedrock configuration from environment', () => 
   });
 });
 
-test('resolveBedrockConfig supports explicit AWS credentials when provided', () => {
+test('resolveBedrockConfig trims values and supports explicit AWS credentials when provided', () => {
   const config = resolveBedrockConfig({
-    BEDROCK_AWS_REGION: 'us-west-2',
-    BEDROCK_AWS_ACCESS_KEY_ID: 'access',
-    BEDROCK_AWS_SECRET_ACCESS_KEY: 'secret',
-    BEDROCK_AWS_SESSION_TOKEN: 'session',
-    BEDROCK_MODEL_ID: 'anthropic.claude-3-5-sonnet-20240620-v1:0'
+    BEDROCK_AWS_REGION: '  us-west-2  ',
+    BEDROCK_AWS_ACCESS_KEY_ID: '  access  ',
+    BEDROCK_AWS_SECRET_ACCESS_KEY: '  secret  ',
+    BEDROCK_AWS_SESSION_TOKEN: '  session  ',
+    BEDROCK_MODEL_ID: '  anthropic.claude-3-5-sonnet-20240620-v1:0  '
   } as NodeJS.ProcessEnv);
 
   assert.deepEqual(config, {
@@ -43,7 +43,22 @@ test('resolveBedrockConfig fails fast when required configuration is missing', (
       resolveBedrockConfig({
         BEDROCK_AWS_REGION: 'us-west-2'
       } as NodeJS.ProcessEnv),
-    /Missing Bedrock configuration/
+    { message: 'Missing Bedrock configuration: BEDROCK_MODEL_ID' }
+  );
+});
+
+test('resolveBedrockConfig reports partial credential failures with the exact message', () => {
+  assert.throws(
+    () =>
+      resolveBedrockConfig({
+        BEDROCK_AWS_REGION: 'us-west-2',
+        BEDROCK_MODEL_ID: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+        BEDROCK_AWS_ACCESS_KEY_ID: 'access'
+      } as NodeJS.ProcessEnv),
+    {
+      message:
+        'BEDROCK_AWS_SESSION_TOKEN and explicit Bedrock credentials require BEDROCK_AWS_SECRET_ACCESS_KEY'
+    }
   );
 });
 
