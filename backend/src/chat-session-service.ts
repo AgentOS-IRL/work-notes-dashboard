@@ -49,7 +49,11 @@ export function createChatSessionService(options: {
         response.assistantMessage.content
       );
 
-      const session = persistedTurn.session;
+      const session = options.repository.updateSessionMetadata(persistedTurn.session.id, {
+        created: response.createdNoteIds,
+        updated: response.updatedNoteIds
+      });
+
       const userTurnCount = options.repository.countUserTurns(session.id);
       if (session.name === null && userTurnCount >= nameAfterUserMessages) {
         try {

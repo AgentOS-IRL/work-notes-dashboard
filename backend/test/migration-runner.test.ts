@@ -19,7 +19,12 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
+      [
+        '001_initial.sql',
+        '002_add_timestamps.sql',
+        '003_add_note_metadata.sql',
+        '004_add_chat_session_metadata.sql'
+      ]
     );
 
     assert.ok(
@@ -47,6 +52,17 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
       'content',
       'metadata'
     ]);
+
+    const chatSessionColumns = database
+      .prepare('PRAGMA table_info(chat_sessions)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(chatSessionColumns.map((column) => column.name), [
+      'id',
+      'name',
+      'createdAt',
+      'lastActivityAt',
+      'metadata'
+    ]);
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -70,7 +86,12 @@ test('initializeSqliteDatabase does not reapply migrations on a second startup',
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
+      [
+        '001_initial.sql',
+        '002_add_timestamps.sql',
+        '003_add_note_metadata.sql',
+        '004_add_chat_session_metadata.sql'
+      ]
     );
     assert.deepEqual(
       database.prepare('SELECT COUNT(*) AS count FROM notes').get(),
@@ -127,7 +148,8 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
       'id',
       'name',
       'createdAt',
-      'lastActivityAt'
+      'lastActivityAt',
+      'metadata'
     ]);
 
     const messageColumns = database
@@ -155,7 +177,12 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
+      [
+        '001_initial.sql',
+        '002_add_timestamps.sql',
+        '003_add_note_metadata.sql',
+        '004_add_chat_session_metadata.sql'
+      ]
     );
 
     const legacyNote = database

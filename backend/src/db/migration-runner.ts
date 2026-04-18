@@ -47,6 +47,16 @@ function ensureColumn(database: SqliteDatabase, tableName: string, columnName: s
   }
 }
 
+function backfillChatSessionMetadata(database: SqliteDatabase) {
+  if (!hasColumns(database, 'chat_sessions', ['metadata'])) {
+    return;
+  }
+
+  database
+    .prepare("UPDATE chat_sessions SET metadata = '{}' WHERE metadata IS NULL OR trim(metadata) = ''")
+    .run();
+}
+
 function listMigrationFiles() {
   if (!fs.existsSync(MIGRATION_DIRECTORY)) {
     return [];
@@ -137,6 +147,9 @@ export function runMigrations(database: SqliteDatabase) {
     }
 
     executeMigration(fileName, sql);
+    if (fileName === '004_add_chat_session_metadata.sql') {
+      backfillChatSessionMetadata(database);
+    }
     console.log(`Applied migration: ${fileName}`);
   }
 }

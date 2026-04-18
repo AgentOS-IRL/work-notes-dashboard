@@ -30,6 +30,8 @@ test('chat session service persists turns and generates a session name after the
             role: 'assistant',
             content: `Assistant reply ${request.messages.length}`
           },
+          createdNoteIds: [],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [],
           notesChanged: false
@@ -62,6 +64,8 @@ test('chat session service persists turns and generates a session name after the
         role: 'assistant',
         content: 'Assistant reply 1'
       },
+      createdNoteIds: [],
+      updatedNoteIds: [],
       changedNoteIds: [],
       openedNoteIds: [],
       notesChanged: false
@@ -92,6 +96,8 @@ test('chat session service persists turns and generates a session name after the
         role: 'assistant',
         content: 'Assistant reply 3'
       },
+      createdNoteIds: [],
+      updatedNoteIds: [],
       changedNoteIds: [],
       openedNoteIds: [],
       notesChanged: false
@@ -163,6 +169,8 @@ test('chat session service prunes expired rows before replying and refreshes ses
             role: 'assistant',
             content: 'Assistant reply after cleanup'
           },
+          createdNoteIds: [],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [],
           notesChanged: false
@@ -187,6 +195,8 @@ test('chat session service prunes expired rows before replying and refreshes ses
         role: 'assistant',
         content: 'Assistant reply after cleanup'
       },
+      createdNoteIds: [],
+      updatedNoteIds: [],
       changedNoteIds: [],
       openedNoteIds: [],
       notesChanged: false
@@ -235,6 +245,8 @@ test('chat session service keeps the chat response working when naming fails', a
             role: 'assistant',
             content: 'Assistant reply'
           },
+          createdNoteIds: [],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [],
           notesChanged: false
@@ -262,6 +274,8 @@ test('chat session service keeps the chat response working when naming fails', a
         role: 'assistant',
         content: 'Assistant reply'
       },
+      createdNoteIds: [],
+      updatedNoteIds: [],
       changedNoteIds: [],
       openedNoteIds: [],
       notesChanged: false
@@ -290,12 +304,72 @@ test('chat session service keeps the chat response working when naming fails', a
         role: 'assistant',
         content: 'Assistant reply'
       },
+      createdNoteIds: [],
+      updatedNoteIds: [],
       changedNoteIds: [],
       openedNoteIds: [],
       notesChanged: false
     });
     assert.equal(repository.getSessionById('session-fail')?.name, null);
     assert.equal(repository.countUserTurns('session-fail'), 2);
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('chat session service persists created and updated note metadata', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-service-metadata-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new ChatSessionRepository(database);
+
+  const service = createChatSessionService({
+    repository,
+    conversationService: {
+      async replyToConversation() {
+        return {
+          assistantMessage: {
+            role: 'assistant',
+            content: 'Created and updated notes.'
+          },
+          createdNoteIds: [10, 11, 10],
+          updatedNoteIds: [11, 12, 12],
+          changedNoteIds: [10, 11, 12],
+          openedNoteIds: [],
+          notesChanged: true
+        };
+      }
+    }
+  });
+
+  try {
+    const response = await service.replyToConversation({
+      sessionId: 'session-metadata',
+      messages: [
+        {
+          role: 'user',
+          content: 'Create and update the note.'
+        }
+      ]
+    });
+
+    assert.deepEqual(response, {
+      assistantMessage: {
+        role: 'assistant',
+        content: 'Created and updated notes.'
+      },
+      createdNoteIds: [10, 11, 10],
+      updatedNoteIds: [11, 12, 12],
+      changedNoteIds: [10, 11, 12],
+      openedNoteIds: [],
+      notesChanged: true
+    });
+    assert.deepEqual(repository.getSessionById('session-metadata')?.metadata, {
+      created: [10, 11],
+      updated: [11, 12]
+    });
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });

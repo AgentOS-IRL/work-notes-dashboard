@@ -34,7 +34,12 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
+      [
+        '001_initial.sql',
+        '002_add_timestamps.sql',
+        '003_add_note_metadata.sql',
+        '004_add_chat_session_metadata.sql'
+      ]
     );
 
     const sessionColumns = database
@@ -44,7 +49,8 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
       'id',
       'name',
       'createdAt',
-      'lastActivityAt'
+      'lastActivityAt',
+      'metadata'
     ]);
 
     const messageColumns = database
@@ -124,7 +130,8 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
       'id',
       'name',
       'createdAt',
-      'lastActivityAt'
+      'lastActivityAt',
+      'metadata'
     ]);
 
     const messageColumns = database
@@ -142,7 +149,12 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
         .prepare('SELECT name FROM _migrations ORDER BY id')
         .all()
         .map((row) => (row as { name: string }).name),
-      ['001_initial.sql', '002_add_timestamps.sql', '003_add_note_metadata.sql']
+      [
+        '001_initial.sql',
+        '002_add_timestamps.sql',
+        '003_add_note_metadata.sql',
+        '004_add_chat_session_metadata.sql'
+      ]
     );
 
     const repository = new ChatSessionRepository(database, { now: () => NOW });
@@ -151,6 +163,10 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
     assert.equal(session?.name, 'Legacy Session');
     assert.equal(typeof session?.createdAt, 'number');
     assert.equal(typeof session?.lastActivityAt, 'number');
+    assert.deepEqual(session?.metadata, {
+      created: [],
+      updated: []
+    });
     assert.ok((session?.lastActivityAt ?? 0) > 0);
     assert.equal(session?.createdAt, session?.lastActivityAt);
 
@@ -178,7 +194,11 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       id: 'session-123',
       name: null,
       createdAt: NOW,
-      lastActivityAt: NOW
+      lastActivityAt: NOW,
+      metadata: {
+        created: [],
+        updated: []
+      }
     });
 
     const userMessage = repository.insertUserMessage('session-123', 'Draft a weekly update.');
@@ -203,9 +223,83 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       id: 'session-123',
       name: 'Weekly update',
       createdAt: NOW,
-      lastActivityAt: NOW
+      lastActivityAt: NOW,
+      metadata: {
+        created: [],
+        updated: []
+      }
     });
     assert.deepEqual(repository.getSessionById('session-123'), renamed);
+
+    const metadataUpdated = repository.updateSessionMetadata('session-123', {
+      created: [1, 2, 1],
+      updated: [2, 3, 3]
+    });
+    assert.deepEqual(metadataUpdated.metadata, {
+      created: [1, 2],
+      updated: [2, 3]
+    });
+    assert.deepEqual(repository.getSessionById('session-123')?.metadata, {
+      created: [1, 2],
+      updated: [2, 3]
+    });
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('ChatSessionRepository normalizes legacy session metadata rows', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-metadata-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        createdAt INTEGER NOT NULL DEFAULT 0,
+        lastActivityAt INTEGER NOT NULL DEFAULT 0,
+        metadata TEXT
+      );
+
+      INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (
+        'session-legacy',
+        'Legacy Session',
+        12345,
+        1700000000000,
+        '{"created":[1,1,"2","bad"],"updated":[2,3,3]}'
+      );
+    `);
+
+    const repository = new ChatSessionRepository(database, { now: () => NOW });
+    assert.deepEqual(repository.getSessionById('session-legacy'), {
+      id: 'session-legacy',
+      name: 'Legacy Session',
+      createdAt: 12345,
+      lastActivityAt: 1_700_000_000_000,
+      metadata: {
+        created: [1, 2],
+        updated: [2, 3]
+      }
+    });
+
+    assert.deepEqual(
+      repository.listRecentSessions(10),
+      [
+        {
+          id: 'session-legacy',
+          name: 'Legacy Session',
+          createdAt: 12345,
+          lastActivityAt: 1_700_000_000_000,
+          metadata: {
+            created: [1, 2],
+            updated: [2, 3]
+          }
+        }
+      ]
+    );
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -251,26 +345,39 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
         id: session.id,
         name: session.name,
         createdAt: session.createdAt,
-        lastActivityAt: session.lastActivityAt
+        lastActivityAt: session.lastActivityAt,
+        metadata: session.metadata
       })),
       [
         {
           id: 'session-new',
           name: 'Named session',
           createdAt: NOW - 1_000,
-          lastActivityAt: NOW - 1_000
+          lastActivityAt: NOW - 1_000,
+          metadata: {
+            created: [],
+            updated: []
+          }
         },
         {
           id: 'session-middle',
           name: null,
           createdAt: NOW - 2_000,
-          lastActivityAt: NOW - 2_000
+          lastActivityAt: NOW - 2_000,
+          metadata: {
+            created: [],
+            updated: []
+          }
         },
         {
           id: 'session-old',
           name: null,
           createdAt: NOW - 5_000,
-          lastActivityAt: NOW - 5_000
+          lastActivityAt: NOW - 5_000,
+          metadata: {
+            created: [],
+            updated: []
+          }
         }
       ]
     );

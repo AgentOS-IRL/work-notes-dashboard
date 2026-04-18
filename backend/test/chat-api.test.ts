@@ -65,6 +65,8 @@ test('chat API returns assistant replies and note change metadata', async () => 
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
+          createdNoteIds: [1],
+          updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [],
           notesChanged: true
@@ -100,6 +102,8 @@ test('chat API returns assistant replies and note change metadata', async () => 
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
+          createdNoteIds: [1],
+          updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [],
           notesChanged: true
@@ -112,7 +116,11 @@ test('chat API returns assistant replies and note change metadata', async () => 
       id: 'session-123',
       name: null,
       createdAt: NOW,
-      lastActivityAt: NOW
+      lastActivityAt: NOW,
+      metadata: {
+        created: [1],
+        updated: [1]
+      }
     });
     assert.deepEqual(
       repository.getRecentMessages('session-123', 10).map((message) => ({

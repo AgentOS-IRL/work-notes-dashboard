@@ -87,6 +87,8 @@ describe('index page', () => {
             role: 'assistant',
             content: 'I created a new weekly update note.'
           },
+          createdNoteIds: [3],
+          updatedNoteIds: [3],
           changedNoteIds: [3],
           openedNoteIds: [],
           notesChanged: true
@@ -183,6 +185,8 @@ describe('index page', () => {
             role: 'assistant',
             content: 'I opened the retro note.'
           },
+          createdNoteIds: [],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [2],
           notesChanged: false

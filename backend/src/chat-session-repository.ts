@@ -9,6 +9,12 @@ export interface ChatSession {
   name: string | null;
   createdAt: number;
   lastActivityAt: number;
+  metadata: ChatSessionMetadata;
+}
+
+export interface ChatSessionMetadata {
+  created: number[];
+  updated: number[];
 }
 
 export interface ChatMessage {
@@ -55,7 +61,105 @@ function toChatSession(row: unknown): ChatSession {
     id: session.id,
     name: session.name ?? null,
     createdAt: session.createdAt,
-    lastActivityAt: session.lastActivityAt
+    lastActivityAt: session.lastActivityAt,
+    metadata: normalizeChatSessionMetadata(session.metadata)
+  };
+}
+
+function createEmptyChatSessionMetadata(): ChatSessionMetadata {
+  return {
+    created: [],
+    updated: []
+  };
+}
+
+function normalizeSessionIdList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<number>();
+  const normalized: number[] = [];
+
+  for (const entry of value) {
+    const numericValue =
+      typeof entry === 'number'
+        ? entry
+        : typeof entry === 'string'
+          ? Number(entry.trim())
+          : Number.NaN;
+
+    if (!Number.isInteger(numericValue) || numericValue <= 0 || seen.has(numericValue)) {
+      continue;
+    }
+
+    seen.add(numericValue);
+    normalized.push(numericValue);
+  }
+
+  return normalized;
+}
+
+function normalizeChatSessionMetadata(rawMetadata: unknown): ChatSessionMetadata {
+  const parsedMetadata =
+    typeof rawMetadata === 'string'
+      ? (() => {
+          if (rawMetadata.trim() === '') {
+            return null;
+          }
+
+          try {
+            return JSON.parse(rawMetadata) as unknown;
+          } catch {
+            return null;
+          }
+        })()
+      : rawMetadata;
+
+  if (!parsedMetadata || typeof parsedMetadata !== 'object') {
+    return createEmptyChatSessionMetadata();
+  }
+
+  const metadata = parsedMetadata as Partial<ChatSessionMetadata> & {
+    created?: unknown;
+    updated?: unknown;
+  };
+
+  return {
+    created: normalizeSessionIdList(metadata.created),
+    updated: normalizeSessionIdList(metadata.updated)
+  };
+}
+
+function serializeChatSessionMetadata(metadata: ChatSessionMetadata) {
+  return JSON.stringify(normalizeChatSessionMetadata(metadata));
+}
+
+function mergeChatSessionMetadata(
+  currentMetadata: ChatSessionMetadata | null,
+  nextMetadata: Partial<ChatSessionMetadata>
+): ChatSessionMetadata {
+  const current = currentMetadata ?? createEmptyChatSessionMetadata();
+  const nextCreated = normalizeSessionIdList(nextMetadata.created);
+  const nextUpdated = normalizeSessionIdList(nextMetadata.updated);
+
+  const created = [...current.created];
+  for (const noteId of nextCreated) {
+    if (!created.includes(noteId)) {
+      created.push(noteId);
+    }
+  }
+
+  const updated = [...current.updated];
+  for (const noteId of nextUpdated) {
+    if (!updated.includes(noteId)) {
+      updated.push(noteId);
+    }
+  }
+
+  return {
+    created,
+    updated
   };
 }
 
@@ -99,7 +203,7 @@ export class ChatSessionRepository {
   getSessionById(sessionId: string): ChatSession | null {
     const normalizedSessionId = assertSessionId(sessionId);
     const session = this.database
-      .prepare('SELECT id, name, createdAt, lastActivityAt FROM chat_sessions WHERE id = ?')
+      .prepare('SELECT id, name, createdAt, lastActivityAt, metadata FROM chat_sessions WHERE id = ?')
       .get(normalizedSessionId);
 
     if (!session) {
@@ -119,9 +223,9 @@ export class ChatSessionRepository {
     const timestamp = this.now();
     this.database
       .prepare(
-        'INSERT OR IGNORE INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, NULL, ?, ?)'
+        'INSERT OR IGNORE INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, NULL, ?, ?, ?)'
       )
-      .run(normalizedSessionId, timestamp, timestamp);
+      .run(normalizedSessionId, timestamp, timestamp, serializeChatSessionMetadata(createEmptyChatSessionMetadata()));
 
     return this.requireSession(normalizedSessionId);
   }
@@ -161,11 +265,11 @@ export class ChatSessionRepository {
         normalizedAssistantContent
       );
 
-      return {
-        session: this.requireSession(normalizedSessionId),
-        userMessage,
-        assistantMessage
-      };
+        return {
+          session: this.requireSession(normalizedSessionId),
+          userMessage,
+          assistantMessage
+        };
     });
 
     return transaction();
@@ -195,6 +299,7 @@ export class ChatSessionRepository {
       .prepare(
         `
           SELECT id, name, createdAt, lastActivityAt
+          , metadata
           FROM chat_sessions
           WHERE lastActivityAt >= ?
           ORDER BY lastActivityAt DESC, createdAt DESC, id DESC
@@ -260,6 +365,22 @@ export class ChatSessionRepository {
     const result = this.database
       .prepare('UPDATE chat_sessions SET name = ? WHERE id = ?')
       .run(normalizedName, normalizedSessionId);
+
+    if (result.changes === 0) {
+      throw new NotFoundError(`Session ${normalizedSessionId} was not found.`);
+    }
+
+    return this.requireSession(normalizedSessionId);
+  }
+
+  updateSessionMetadata(sessionId: string, metadata: Partial<ChatSessionMetadata>): ChatSession {
+    const normalizedSessionId = assertSessionId(sessionId);
+    const current = this.requireSession(normalizedSessionId);
+    const mergedMetadata = mergeChatSessionMetadata(current.metadata, metadata);
+
+    const result = this.database
+      .prepare('UPDATE chat_sessions SET metadata = ? WHERE id = ?')
+      .run(serializeChatSessionMetadata(mergedMetadata), normalizedSessionId);
 
     if (result.changes === 0) {
       throw new NotFoundError(`Session ${normalizedSessionId} was not found.`);
