@@ -13,7 +13,7 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 }
 
 describe('index page', () => {
-  it('renders the workspace shell, explores notes, and refreshes after chat updates', async () => {
+  it('renders the workspace shell, explores notes, deletes a note, and refreshes after chat updates', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -22,6 +22,12 @@ describe('index page', () => {
             { id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' },
             { id: 2, title: 'Retro', content: '# Retro\n\nRemember the blocker.' }
           ]
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          notes: [{ id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' }]
         })
       )
       .mockResolvedValueOnce(
@@ -36,14 +42,12 @@ describe('index page', () => {
       )
       .mockResolvedValueOnce(
         jsonResponse({
-          notes: [
-            { id: 1, title: 'Sprint plan refined', content: '# Sprint plan\n\n- Outline milestones' },
-            { id: 2, title: 'Retro', content: '# Retro\n\nRemember the blocker.' }
-          ]
+          notes: [{ id: 1, title: 'Sprint plan refined', content: '# Sprint plan\n\n- Outline milestones' }]
         })
       );
 
     vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('confirm', vi.fn(() => true));
 
     const wrapper = mount(IndexPage);
     await flushPromises();
@@ -52,6 +56,7 @@ describe('index page', () => {
     expect(wrapper.text()).toContain('Explore');
     expect(wrapper.text()).toContain('Sprint plan');
     expect(wrapper.text()).toContain('Outline milestones');
+    expect(wrapper.find('.delete-button').exists()).toBe(false);
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
@@ -65,6 +70,14 @@ describe('index page', () => {
 
     expect(wrapper.find('.note-meta h3').text()).toBe('Retro');
     expect(wrapper.find('.markdown-body h1').text()).toBe('Retro');
+    expect(wrapper.get('.delete-button').text()).toBe('Delete note');
+
+    await wrapper.get('.delete-button').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.findAll('.tree-item')).toHaveLength(1);
+    expect(wrapper.find('.tree-item').text()).toContain('Sprint plan');
+    expect(wrapper.find('.note-meta h3').text()).toBe('Sprint plan');
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
@@ -79,6 +92,6 @@ describe('index page', () => {
     await flushPromises();
 
     expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 });

@@ -8,14 +8,15 @@ import { useNotes } from '~/composables/useNotes';
 const workspaceMode = ref<'chat-first' | 'explore-notes'>('chat-first');
 
 const {
-  notes,
   noteTree,
   selectedNoteId,
   selectedNote,
   loading,
   errorMessage,
   loadNotes,
-  selectNoteById
+  selectNoteById,
+  deleteNote,
+  saving
 } = useNotes();
 
 const exploreLabel = computed(() =>
@@ -32,6 +33,16 @@ function handleNotesChanged() {
 
 function handleSelectNote(noteId: number) {
   selectNoteById(noteId);
+}
+
+async function handleDeleteNote() {
+  const note = selectedNote.value;
+
+  if (!note || !window.confirm(`Delete "${note.title}"?`)) {
+    return;
+  }
+
+  await deleteNote(note.id);
 }
 
 function toggleWorkspaceMode() {
@@ -72,7 +83,14 @@ function toggleWorkspaceMode() {
           />
         </aside>
 
-        <NotesPanel :note="selectedNote" :loading="loading" :error-message="errorMessage" />
+        <NotesPanel
+          :note="selectedNote"
+          :loading="loading"
+          :error-message="errorMessage"
+          :mutating="saving"
+          :can-delete="workspaceMode === 'explore-notes'"
+          @delete="handleDeleteNote"
+        />
       </div>
     </section>
   </main>

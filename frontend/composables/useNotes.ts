@@ -79,6 +79,16 @@ export function useNotes() {
     }
   }
 
+  function getFallbackSelectedNoteId(deletedNoteId: number) {
+    const deletedIndex = notes.value.findIndex((note) => note.id === deletedNoteId);
+
+    if (deletedIndex === -1) {
+      return null;
+    }
+
+    return notes.value[deletedIndex + 1]?.id ?? notes.value[deletedIndex - 1]?.id ?? null;
+  }
+
   async function loadNotes(options: { preserveEditorFields?: boolean } = {}) {
     loading.value = true;
     errorMessage.value = '';
@@ -142,11 +152,16 @@ export function useNotes() {
     saving.value = true;
     errorMessage.value = '';
     statusMessage.value = '';
+    const nextSelectedNoteId = getFallbackSelectedNoteId(noteId);
 
     try {
       await requestJson<void>(`/api/notes/${noteId}`, { method: 'DELETE' });
       statusMessage.value = 'Note deleted.';
-      resetForm();
+      if (nextSelectedNoteId === null) {
+        resetForm();
+      } else {
+        selectedNoteId.value = nextSelectedNoteId;
+      }
       await loadNotes();
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : 'Failed to delete note.';
