@@ -1,4 +1,4 @@
-import { mount, flushPromises } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import IndexPage from '~/pages/index.vue';
 
@@ -13,14 +13,14 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 }
 
 describe('index page', () => {
-  it('renders the split dashboard and refreshes notes after chat changes them', async () => {
+  it('renders the workspace shell, explores notes, and refreshes after chat updates', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
         jsonResponse({
           notes: [
-            { id: 1, title: 'Sprint plan', content: 'Outline milestones' },
-            { id: 2, title: 'Retro', content: 'Capture lessons learned' }
+            { id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' },
+            { id: 2, title: 'Retro', content: '# Retro\n\nRemember the blocker.' }
           ]
         })
       )
@@ -37,8 +37,8 @@ describe('index page', () => {
       .mockResolvedValueOnce(
         jsonResponse({
           notes: [
-            { id: 1, title: 'Sprint plan refined', content: 'Outline milestones' },
-            { id: 2, title: 'Retro', content: 'Capture lessons learned' }
+            { id: 1, title: 'Sprint plan refined', content: '# Sprint plan\n\n- Outline milestones' },
+            { id: 2, title: 'Retro', content: '# Retro\n\nRemember the blocker.' }
           ]
         })
       );
@@ -48,25 +48,37 @@ describe('index page', () => {
     const wrapper = mount(IndexPage);
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Talk things out with the notes model.');
-    expect(wrapper.text()).toContain('Capture the source of truth.');
+    expect(wrapper.text()).toContain('Developer workspace for chat and notes.');
+    expect(wrapper.text()).toContain('Explore notes');
     expect(wrapper.text()).toContain('Sprint plan');
-    expect(wrapper.text()).toContain('Retro');
+    expect(wrapper.text()).toContain('Rendered');
 
-    const noteCards = wrapper.findAll('.note-card');
-    await noteCards[1].trigger('click');
+    await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
 
-    const titleInput = wrapper.find('.notes-panel input');
-    expect((titleInput.element as HTMLInputElement).value).toBe('Retro');
+    expect(wrapper.text()).toContain('Return to chat');
+    expect(wrapper.find('.notes-tree').exists()).toBe(true);
 
-    const chatInput = wrapper.get('#chat-draft');
-    await chatInput.setValue('Refine the sprint plan.');
+    const noteButtons = wrapper.findAll('.tree-item');
+    await noteButtons[1].trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('.note-meta h3').text()).toBe('Retro');
+    expect(wrapper.find('.markdown-body h1').text()).toBe('Retro');
+
+    await wrapper.get('button.toggle-button').trigger('click');
+    await flushPromises();
+
+    await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('form.composer').trigger('submit');
     await flushPromises();
 
     expect(wrapper.text()).toContain('I updated the sprint plan note.');
-    expect(wrapper.text()).toContain('Sprint plan refined');
+
+    await wrapper.get('button.toggle-button').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

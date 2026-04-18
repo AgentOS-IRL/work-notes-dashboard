@@ -8,6 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "markdown-it": "^14.1.1",
     "nuxt": "^3.0.0"
   },
   "devDependencies": {
