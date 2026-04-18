@@ -62,6 +62,48 @@ describe('useNotes', () => {
     expect(notes.selectedNote.value?.title).toBe('Follow-up');
   });
 
+  it('refreshes notes and focuses the newest matching note id after reload', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          notes: [
+            { id: 1, title: 'Daily log', content: 'First entry' },
+            { id: 2, title: 'Follow-up', content: 'Second entry' },
+            { id: 3, title: 'Draft', content: 'Original body' }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          notes: [
+            { id: 1, title: 'Daily log', content: 'First entry' },
+            { id: 2, title: 'Follow-up', content: 'Second entry' },
+            { id: 3, title: 'Draft ready', content: 'Fresh body' }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const notes = useNotes();
+    await notes.loadNotes();
+
+    notes.selectNoteById(1);
+    await notes.loadNotes({ focusNoteIds: [1, 3] });
+
+    expect(notes.notes.value[2]).toEqual({
+      id: 3,
+      title: 'Draft ready',
+      content: 'Fresh body'
+    });
+    expect(notes.selectedNoteId.value).toBe(3);
+    expect(notes.selectedNote.value?.title).toBe('Draft ready');
+    expect(notes.title.value).toBe('Draft ready');
+    expect(notes.content.value).toBe('Fresh body');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('preserves a dirty editor when refreshes come from chat updates', async () => {
     const fetchMock = vi
       .fn()

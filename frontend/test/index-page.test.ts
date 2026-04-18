@@ -13,7 +13,7 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 }
 
 describe('index page', () => {
-  it('renders the workspace shell, explores notes, deletes a note, and refreshes after chat updates', async () => {
+  it('renders the workspace shell, explores notes, deletes a note, and loads a new chat-created note', async () => {
     let notesListCount = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -43,7 +43,10 @@ describe('index page', () => {
         }
 
         return jsonResponse({
-          notes: [{ id: 1, title: 'Sprint plan refined', content: '# Sprint plan\n\n- Outline milestones' }]
+          notes: [
+            { id: 1, title: 'Sprint plan refined', content: '# Sprint plan\n\n- Outline milestones' },
+            { id: 3, title: 'Weekly update', content: '# Weekly update\n\n- Sent to the team' }
+          ]
         });
       }
 
@@ -55,9 +58,9 @@ describe('index page', () => {
         return jsonResponse({
           assistantMessage: {
             role: 'assistant',
-            content: 'I updated the sprint plan note.'
+            content: 'I created a new weekly update note.'
           },
-          changedNoteIds: [1],
+          changedNoteIds: [3],
           notesChanged: true
         });
       }
@@ -105,12 +108,14 @@ describe('index page', () => {
     await wrapper.get('form.composer').trigger('submit');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('I updated the sprint plan note.');
+    expect(wrapper.text()).toContain('I created a new weekly update note.');
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
 
     expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
+    expect(wrapper.find('.note-meta h3').text()).toBe('Weekly update');
+    expect(wrapper.find('.markdown-body h1').text()).toBe('Weekly update');
     expect(fetchMock).toHaveBeenCalledTimes(7);
   });
 });

@@ -79,6 +79,15 @@ export function useNotes() {
     }
   }
 
+  function selectFirstAvailableNote(nextNotes: Note[]) {
+    if (nextNotes.length > 0) {
+      selectNote(nextNotes[0]);
+      return;
+    }
+
+    resetForm();
+  }
+
   function getFallbackSelectedNoteId(deletedNoteId: number) {
     const deletedIndex = notes.value.findIndex((note) => note.id === deletedNoteId);
 
@@ -89,7 +98,9 @@ export function useNotes() {
     return notes.value[deletedIndex + 1]?.id ?? notes.value[deletedIndex - 1]?.id ?? null;
   }
 
-  async function loadNotes(options: { preserveEditorFields?: boolean } = {}) {
+  async function loadNotes(
+    options: { preserveEditorFields?: boolean; focusNoteIds?: number[] } = {}
+  ) {
     loading.value = true;
     errorMessage.value = '';
 
@@ -101,14 +112,28 @@ export function useNotes() {
         return;
       }
 
+      const focusNoteId = options.focusNoteIds
+        ?.slice()
+        .reverse()
+        .find((noteId) => data.notes.some((note) => note.id === noteId));
+
+      if (focusNoteId !== undefined) {
+        const focusedNote = data.notes.find((note) => note.id === focusNoteId);
+        if (focusedNote) {
+          selectNote(focusedNote);
+          return;
+        }
+      }
+
       if (selectedNoteId.value !== null) {
         const nextSelected = data.notes.find((note) => note.id === selectedNoteId.value);
         if (nextSelected) {
           selectNote(nextSelected);
+          return;
         }
-      } else if (data.notes.length > 0) {
-        selectNote(data.notes[0]);
       }
+
+      selectFirstAvailableNote(data.notes);
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : 'Failed to load notes.';
     } finally {
