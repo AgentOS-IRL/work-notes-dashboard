@@ -68,7 +68,8 @@ export function createChatSessionService(options: {
               options.repository.updateSessionName(session.id, resolvedName);
             }
           }
-        } catch {
+        } catch (error) {
+          console.error(`Failed to generate or update session name for session ${session.id}:`, error);
           // Session naming is best-effort and must never block the chat reply.
         }
       }
