@@ -127,7 +127,7 @@ test('conversation service uses note tools to inspect and update notes', async (
     });
 
     assert.deepEqual(bindToolsCalls, [
-      ['create_note', 'get_note', 'open_note', 'list_notes', 'update_note']
+      ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note']
     ]);
     assert.equal(invocationMessages.length, 3);
     assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
@@ -264,7 +264,7 @@ test('conversation service tracks created and updated note ids separately', asyn
   }
 });
 
-test('conversation service tracks get_note reads as opened notes', async () => {
+test('conversation service tracks read_note reads separately from opened notes', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-open-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -289,11 +289,11 @@ test('conversation service tracks get_note reads as opened notes', async () => {
             assert.deepEqual(messageTypes(messages), ['system', 'human']);
 
             return new AIMessage({
-              content: 'I will open the note.',
+              content: 'I will read the note.',
               tool_calls: [
                 {
                   id: 'call-1',
-                  name: 'get_note',
+                  name: 'read_note',
                   args: {
                     id: 1
                   }
@@ -319,7 +319,7 @@ test('conversation service tracks get_note reads as opened notes', async () => {
           );
 
           return new AIMessage({
-            content: 'Opened the note for context.'
+            content: 'Read the note for context.'
           });
         }
       };
@@ -345,15 +345,15 @@ test('conversation service tracks get_note reads as opened notes', async () => {
     assert.deepEqual(response.createdNoteIds, []);
     assert.deepEqual(response.updatedNoteIds, []);
     assert.deepEqual(response.changedNoteIds, []);
-    assert.deepEqual(response.openedNoteIds, [1]);
+    assert.deepEqual(response.openedNoteIds, []);
     assert.deepEqual(response.assistantMessage, {
       role: 'assistant',
-      content: 'Opened the note for context.'
+      content: 'Read the note for context.'
     });
     assert.deepEqual(response.toolCalls, [
       {
         id: 'call-1',
-        name: 'get_note',
+        name: 'read_note',
         args: {
           id: 1
         }
@@ -368,6 +368,103 @@ test('conversation service tracks get_note reads as opened notes', async () => {
         updated: []
       }
     });
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('conversation service tracks open_note calls as opened notes', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-open-note-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+  repository.createNote({
+    title: 'Sprint plan',
+    content: 'Draft the kickoff note.'
+  });
+
+  let invocationCount = 0;
+
+  const model = {
+    bindTools() {
+      return {
+        async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
+          invocationCount += 1;
+
+          if (invocationCount === 1) {
+            assert.deepEqual(messageTypes(messages), ['system', 'human']);
+
+            return new AIMessage({
+              content: 'I will open the note.',
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  name: 'open_note',
+                  args: {
+                    id: 1
+                  }
+                }
+              ]
+            });
+          }
+
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+          assert.equal(
+            String(messages[3].content),
+            JSON.stringify({
+              note: {
+                id: 1,
+                title: 'Sprint plan',
+                content: 'Draft the kickoff note.',
+                metadata: {
+                  created: '',
+                  updated: []
+                }
+              }
+            })
+          );
+
+          return new AIMessage({
+            content: 'Opened the note for the user.'
+          });
+        }
+      };
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+    const response = await service.replyToConversation({
+      sessionId: 'session-open-note',
+      messages: [
+        {
+          role: 'user',
+          content: 'Open the sprint plan.'
+        }
+      ]
+    });
+
+    assert.equal(invocationCount, 2);
+    assert.equal(response.notesChanged, false);
+    assert.deepEqual(response.createdNoteIds, []);
+    assert.deepEqual(response.updatedNoteIds, []);
+    assert.deepEqual(response.changedNoteIds, []);
+    assert.deepEqual(response.openedNoteIds, [1]);
+    assert.deepEqual(response.assistantMessage, {
+      role: 'assistant',
+      content: 'Opened the note for the user.'
+    });
+    assert.deepEqual(response.toolCalls, [
+      {
+        id: 'call-1',
+        name: 'open_note',
+        args: {
+          id: 1
+        }
+      }
+    ]);
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -406,7 +503,7 @@ test('conversation service preserves tool-call order within a turn and across lo
                 },
                 {
                   id: 'call-2',
-                  name: 'get_note',
+                  name: 'read_note',
                   args: {
                     id: 1
                   }
@@ -444,7 +541,7 @@ test('conversation service preserves tool-call order within a turn and across lo
       },
       {
         id: 'call-2',
-        name: 'get_note',
+        name: 'read_note',
         args: {
           id: 1
         }

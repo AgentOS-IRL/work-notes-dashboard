@@ -31,6 +31,24 @@ function asNote(note: Note | null) {
   return note;
 }
 
+function createReadNoteTool(
+  repository: NoteToolRepository,
+  context: NoteToolContext,
+  name: 'read_note' | 'get_note' | 'open_note',
+  description: string
+) {
+  return tool(
+    async ({ id }) => {
+      return { note: asNote(repository.getNoteById(id)) };
+    },
+    {
+      name,
+      description,
+      schema: noteIdSchema
+    }
+  );
+}
+
 export function createNoteTools(repository: NoteToolRepository, context: NoteToolContext = {}) {
   const createNoteTool = tool(
     async ({ title, content }) => {
@@ -47,26 +65,25 @@ export function createNoteTools(repository: NoteToolRepository, context: NoteToo
     }
   );
 
-  const getNoteTool = tool(
-    async ({ id }) => {
-      return { note: asNote(repository.getNoteById(id)) };
-    },
-    {
-      name: 'get_note',
-      description: 'Fetch a note by id from the SQLite-backed notes store.',
-      schema: noteIdSchema
-    }
+  const readNoteTool = createReadNoteTool(
+    repository,
+    context,
+    'read_note',
+    'Read a note by id from the SQLite-backed notes store for model-side inspection. Use this when the LLM needs note content or metadata.'
   );
 
-  const openNoteTool = tool(
-    async ({ id }) => {
-      return { note: asNote(repository.getNoteById(id)) };
-    },
-    {
-      name: 'open_note',
-      description: 'Open a note by id from the SQLite-backed notes store without modifying it.',
-      schema: noteIdSchema
-    }
+  const getNoteTool = createReadNoteTool(
+    repository,
+    context,
+    'get_note',
+    'Backward-compatible alias for read_note.'
+  );
+
+  const openNoteTool = createReadNoteTool(
+    repository,
+    context,
+    'open_note',
+    'Open a note by id from the SQLite-backed notes store without modifying it. This is the user-facing note-open action.'
   );
 
   const listNotesTool = tool(
@@ -106,6 +123,7 @@ export function createNoteTools(repository: NoteToolRepository, context: NoteToo
 
   return {
     createNoteTool,
+    readNoteTool,
     getNoteTool,
     openNoteTool,
     listNotesTool,
