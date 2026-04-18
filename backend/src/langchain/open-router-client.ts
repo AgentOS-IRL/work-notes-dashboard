@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import type { ChatTurn } from './conversation';
 
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini';
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? '@preset/google-ai-studio';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 function createOpenRouterClient() {
