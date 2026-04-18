@@ -5,6 +5,7 @@ import { createDefaultChatModel } from './index';
 import type { NotesRepository } from '../notes-repository';
 
 export type ChatRole = 'user' | 'assistant';
+export type ChatToolCall = Record<string, unknown>;
 
 export interface ChatTurn {
   role: ChatRole;
@@ -18,6 +19,7 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   assistantMessage: ChatTurn;
+  toolCalls: ChatToolCall[];
   createdNoteIds: number[];
   updatedNoteIds: number[];
   changedNoteIds: number[];
@@ -172,14 +174,17 @@ export function createConversationService(options: {
       const updatedNoteIds = new Set<number>();
       const changedNoteIds = new Set<number>();
       const openedNoteIds = new Set<number>();
+      const toolCalls: ChatToolCall[] = [];
       let messages: BaseMessage[] = baseMessages;
 
       for (let loopIndex = 0; loopIndex < MAX_TOOL_LOOPS; loopIndex += 1) {
         const assistantReply = await modelWithTools.invoke(messages);
         messages = [...messages, assistantReply];
 
-        const toolCalls = AIMessage.isInstance(assistantReply) ? assistantReply.tool_calls ?? [] : [];
-        if (toolCalls.length === 0) {
+        const assistantToolCalls = AIMessage.isInstance(assistantReply) ? assistantReply.tool_calls ?? [] : [];
+        toolCalls.push(...assistantToolCalls.map((toolCall) => ({ ...toolCall })));
+
+        if (assistantToolCalls.length === 0) {
           const reply = extractAssistantText(assistantReply);
           if (!reply) {
             throw new Error('The assistant returned an empty response.');
@@ -190,6 +195,7 @@ export function createConversationService(options: {
               role: 'assistant',
               content: reply
             },
+            toolCalls,
             createdNoteIds: [...createdNoteIds],
             updatedNoteIds: [...updatedNoteIds],
             changedNoteIds: [...changedNoteIds],
@@ -198,7 +204,7 @@ export function createConversationService(options: {
           };
         }
 
-        for (const toolCall of toolCalls) {
+        for (const toolCall of assistantToolCalls) {
           const toolName = toolCall.name;
           if (!isNoteToolName(toolName)) {
             messages = [

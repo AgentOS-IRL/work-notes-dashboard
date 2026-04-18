@@ -38,7 +38,8 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
         '001_initial.sql',
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
-        '004_add_chat_session_metadata.sql'
+        '004_add_chat_session_metadata.sql',
+        '005_add_chat_session_tool_calls.sql'
       ]
     );
 
@@ -50,7 +51,8 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata'
+      'metadata',
+      'toolCalls'
     ]);
 
     const messageColumns = database
@@ -131,7 +133,8 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata'
+      'metadata',
+      'toolCalls'
     ]);
 
     const messageColumns = database
@@ -153,7 +156,8 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
         '001_initial.sql',
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
-        '004_add_chat_session_metadata.sql'
+        '004_add_chat_session_metadata.sql',
+        '005_add_chat_session_tool_calls.sql'
       ]
     );
 
@@ -167,6 +171,7 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
       created: [],
       updated: []
     });
+    assert.deepEqual(session?.toolCalls, []);
     assert.ok((session?.lastActivityAt ?? 0) > 0);
     assert.equal(session?.createdAt, session?.lastActivityAt);
 
@@ -198,7 +203,8 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       metadata: {
         created: [],
         updated: []
-      }
+      },
+      toolCalls: []
     });
 
     const userMessage = repository.insertUserMessage('session-123', 'Draft a weekly update.');
@@ -227,7 +233,8 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       metadata: {
         created: [],
         updated: []
-      }
+      },
+      toolCalls: []
     });
     assert.deepEqual(repository.getSessionById('session-123'), renamed);
 
@@ -249,6 +256,95 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
   }
 });
 
+test('ChatSessionRepository records assistant tool calls in conversation order', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-tool-calls-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new ChatSessionRepository(database, { now: () => NOW });
+
+  try {
+    const firstTurn = repository.recordConversationTurn(
+      'session-123',
+      'Draft a weekly update.',
+      'I used one tool.',
+      [
+        {
+          id: 'call-1',
+          name: 'create_note',
+          args: {
+            title: 'Weekly update'
+          }
+        }
+      ]
+    );
+
+    assert.deepEqual(firstTurn.session.toolCalls, [
+      {
+        id: 'call-1',
+        name: 'create_note',
+        args: {
+          title: 'Weekly update'
+        }
+      }
+    ]);
+
+    const secondTurn = repository.recordConversationTurn(
+      'session-123',
+      'Refine the note.',
+      'I used another tool.',
+      [
+        {
+          id: 'call-2',
+          name: 'update_note',
+          args: {
+            id: 1,
+            title: 'Weekly update refined'
+          }
+        }
+      ]
+    );
+
+    assert.deepEqual(secondTurn.session.toolCalls, [
+      {
+        id: 'call-1',
+        name: 'create_note',
+        args: {
+          title: 'Weekly update'
+        }
+      },
+      {
+        id: 'call-2',
+        name: 'update_note',
+        args: {
+          id: 1,
+          title: 'Weekly update refined'
+        }
+      }
+    ]);
+    assert.deepEqual(repository.getSessionById('session-123')?.toolCalls, [
+      {
+        id: 'call-1',
+        name: 'create_note',
+        args: {
+          title: 'Weekly update'
+        }
+      },
+      {
+        id: 'call-2',
+        name: 'update_note',
+        args: {
+          id: 1,
+          title: 'Weekly update refined'
+        }
+      }
+    ]);
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('ChatSessionRepository normalizes legacy session metadata rows', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-metadata-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
@@ -261,15 +357,17 @@ test('ChatSessionRepository normalizes legacy session metadata rows', () => {
         name TEXT,
         createdAt INTEGER NOT NULL DEFAULT 0,
         lastActivityAt INTEGER NOT NULL DEFAULT 0,
-        metadata TEXT
+        metadata TEXT,
+        toolCalls TEXT
       );
 
-      INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (
+      INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata, toolCalls) VALUES (
         'session-legacy',
         'Legacy Session',
         12345,
         1700000000000,
-        '{"created":[1,1,"2","bad"],"updated":[2,3,3]}'
+        '{"created":[1,1,"2","bad"],"updated":[2,3,3]}',
+        NULL
       );
     `);
 
@@ -282,7 +380,8 @@ test('ChatSessionRepository normalizes legacy session metadata rows', () => {
       metadata: {
         created: [1, 2],
         updated: [2, 3]
-      }
+      },
+      toolCalls: []
     });
 
     assert.deepEqual(

@@ -131,6 +131,7 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I refined the sprint plan.'
           },
+          toolCalls: [],
           createdNoteIds: [1],
           updatedNoteIds: [1],
           changedNoteIds: [1],
@@ -225,6 +226,7 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I opened the sprint plan note.'
           },
+          toolCalls: [],
           createdNoteIds: [],
           updatedNoteIds: [],
           changedNoteIds: [],
@@ -262,6 +264,7 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I updated and opened the sprint plan note.'
           },
+          toolCalls: [],
           createdNoteIds: [2],
           updatedNoteIds: [2],
           changedNoteIds: [2],
@@ -305,6 +308,7 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'Ready for the next prompt.'
           },
+          toolCalls: [],
           createdNoteIds: [],
           updatedNoteIds: [],
           changedNoteIds: [],

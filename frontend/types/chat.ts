@@ -27,17 +27,29 @@ export interface ChatSessionMetadata {
   updated: number[];
 }
 
+export type ChatToolCall = Record<string, unknown>;
+
 export interface ChatSessionListResponse {
   sessions: ChatSessionSummary[];
 }
 
+export interface ChatSessionDetail {
+  id: string;
+  name: string | null;
+  createdAt: number;
+  lastActivityAt: number;
+  metadata: ChatSessionMetadata;
+  toolCalls: ChatToolCall[];
+}
+
 export interface ChatSessionDetailResponse {
-  session: ChatSessionSummary;
+  session: ChatSessionDetail;
   messages: ChatMessage[];
 }
 
 export interface ChatResponse {
   assistantMessage: ChatTurn;
+  toolCalls: ChatToolCall[];
   createdNoteIds: number[];
   updatedNoteIds: number[];
   changedNoteIds: number[];

@@ -23,7 +23,8 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
         '001_initial.sql',
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
-        '004_add_chat_session_metadata.sql'
+        '004_add_chat_session_metadata.sql',
+        '005_add_chat_session_tool_calls.sql'
       ]
     );
 
@@ -61,7 +62,8 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata'
+      'metadata',
+      'toolCalls'
     ]);
   } finally {
     database.close();
@@ -90,7 +92,8 @@ test('initializeSqliteDatabase does not reapply migrations on a second startup',
         '001_initial.sql',
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
-        '004_add_chat_session_metadata.sql'
+        '004_add_chat_session_metadata.sql',
+        '005_add_chat_session_tool_calls.sql'
       ]
     );
     assert.deepEqual(
@@ -149,7 +152,8 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata'
+      'metadata',
+      'toolCalls'
     ]);
 
     const messageColumns = database
@@ -181,7 +185,8 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
         '001_initial.sql',
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
-        '004_add_chat_session_metadata.sql'
+        '004_add_chat_session_metadata.sql',
+        '005_add_chat_session_tool_calls.sql'
       ]
     );
 
@@ -251,7 +256,8 @@ test('initializeSqliteDatabase repairs a partially migrated chat session metadat
       'name',
       'createdAt',
       'lastActivityAt',
-      'metadata'
+      'metadata',
+      'toolCalls'
     ]);
 
     assert.deepEqual(
@@ -263,7 +269,8 @@ test('initializeSqliteDatabase repairs a partially migrated chat session metadat
         '001_initial.sql',
         '002_add_timestamps.sql',
         '003_add_note_metadata.sql',
-        '004_add_chat_session_metadata.sql'
+        '004_add_chat_session_metadata.sql',
+        '005_add_chat_session_tool_calls.sql'
       ]
     );
 

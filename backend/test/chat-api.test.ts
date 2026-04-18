@@ -65,6 +65,15 @@ test('chat API returns assistant replies and note change metadata', async () => 
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
+          toolCalls: [
+            {
+              id: 'call-1',
+              name: 'update_note',
+              args: {
+                id: 1
+              }
+            }
+          ],
           createdNoteIds: [1],
           updatedNoteIds: [1],
           changedNoteIds: [1],
@@ -102,6 +111,15 @@ test('chat API returns assistant replies and note change metadata', async () => 
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
+          toolCalls: [
+            {
+              id: 'call-1',
+              name: 'update_note',
+              args: {
+                id: 1
+              }
+            }
+          ],
           createdNoteIds: [1],
           updatedNoteIds: [1],
           changedNoteIds: [1],
@@ -120,7 +138,16 @@ test('chat API returns assistant replies and note change metadata', async () => 
       metadata: {
         created: [1],
         updated: [1]
-      }
+      },
+      toolCalls: [
+        {
+          id: 'call-1',
+          name: 'update_note',
+          args: {
+            id: 1
+          }
+        }
+      ]
     });
     assert.deepEqual(
       repository.getRecentMessages('session-123', 10).map((message) => ({

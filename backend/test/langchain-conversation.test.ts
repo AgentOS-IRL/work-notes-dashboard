@@ -140,6 +140,22 @@ test('conversation service uses note tools to inspect and update notes', async (
       role: 'assistant',
       content: 'Updated the sprint note.'
     });
+    assert.deepEqual(response.toolCalls, [
+      {
+        id: 'call-1',
+        name: 'list_notes',
+        args: {}
+      },
+      {
+        id: 'call-2',
+        name: 'update_note',
+        args: {
+          id: 1,
+          title: 'Sprint plan refined',
+          content: 'Add a sharper project summary.'
+        }
+      }
+    ]);
     assert.deepEqual(repository.getNoteById(1), {
       id: 1,
       title: 'Sprint plan refined',
@@ -329,6 +345,15 @@ test('conversation service tracks get_note reads as opened notes', async () => {
       role: 'assistant',
       content: 'Opened the note for context.'
     });
+    assert.deepEqual(response.toolCalls, [
+      {
+        id: 'call-1',
+        name: 'get_note',
+        args: {
+          id: 1
+        }
+      }
+    ]);
     assert.deepEqual(repository.getNoteById(1), {
       id: 1,
       title: 'Sprint plan',
@@ -338,6 +363,88 @@ test('conversation service tracks get_note reads as opened notes', async () => {
         updated: []
       }
     });
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('conversation service preserves tool-call order within a turn and across loops', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-tool-order-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+  repository.createNote({
+    title: 'Sprint plan',
+    content: 'Draft the kickoff note.'
+  });
+
+  let invocationCount = 0;
+
+  const model = {
+    bindTools() {
+      return {
+        async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
+          invocationCount += 1;
+
+          if (invocationCount === 1) {
+            assert.deepEqual(messageTypes(messages), ['system', 'human']);
+
+            return new AIMessage({
+              content: 'I will inspect the notes first.',
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  name: 'list_notes',
+                  args: {}
+                },
+                {
+                  id: 'call-2',
+                  name: 'get_note',
+                  args: {
+                    id: 1
+                  }
+                }
+              ]
+            });
+          }
+
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool', 'tool']);
+          return new AIMessage({
+            content: 'I inspected the note and am done.'
+          });
+        }
+      };
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+    const response = await service.replyToConversation({
+      sessionId: 'session-order',
+      messages: [
+        {
+          role: 'user',
+          content: 'Check the sprint plan.'
+        }
+      ]
+    });
+
+    assert.deepEqual(response.toolCalls, [
+      {
+        id: 'call-1',
+        name: 'list_notes',
+        args: {}
+      },
+      {
+        id: 'call-2',
+        name: 'get_note',
+        args: {
+          id: 1
+        }
+      }
+    ]);
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
