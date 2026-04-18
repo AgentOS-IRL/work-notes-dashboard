@@ -2,10 +2,20 @@
 import type { Note } from '~/types/note';
 import MarkdownRenderer from '~/components/notes/MarkdownRenderer.vue';
 
-defineProps<{
-  note: Note | null;
-  loading: boolean;
-  errorMessage: string;
+const props = withDefaults(
+  defineProps<{
+    note: Note | null;
+    loading: boolean;
+    errorMessage: string;
+    mutating?: boolean;
+  }>(),
+  {
+    mutating: false
+  }
+);
+
+const emit = defineEmits<{
+  (event: 'delete'): void;
 }>();
 </script>
 
@@ -16,14 +26,26 @@ defineProps<{
     </header>
 
     <div class="viewer-frame">
-      <p v-if="loading" class="state-text">Loading...</p>
-      <p v-else-if="errorMessage" class="state-text error">{{ errorMessage }}</p>
-      <div v-else-if="note" class="note-view">
+      <p v-if="props.loading" class="state-text">Loading...</p>
+      <p v-else-if="props.errorMessage" class="state-text error">{{ props.errorMessage }}</p>
+      <div v-else-if="props.note" class="note-view">
         <div class="note-meta">
-          <h3>{{ note.title }}</h3>
+          <div class="note-meta-row">
+            <h3>{{ props.note.title }}</h3>
+
+            <button
+              type="button"
+              class="delete-button"
+              :disabled="props.mutating"
+              aria-label="Delete note"
+              @click="emit('delete')"
+            >
+              {{ props.mutating ? 'Deleting...' : 'Delete note' }}
+            </button>
+          </div>
         </div>
 
-        <MarkdownRenderer :content="note.content" />
+        <MarkdownRenderer :content="props.note.content" />
       </div>
       <div v-else class="empty-state">
         <p>No note</p>
@@ -108,6 +130,13 @@ h2 {
   gap: 8px;
 }
 
+.note-meta-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .note-kicker {
   margin: 0;
   color: var(--muted-strong);
@@ -122,6 +151,32 @@ h2 {
   line-height: 1.1;
   letter-spacing: -0.05em;
   color: var(--text-strong);
+}
+
+.delete-button {
+  flex: none;
+  border: 1px solid color-mix(in srgb, #ef4444 48%, var(--border));
+  border-radius: 999px;
+  padding: 9px 14px;
+  background: color-mix(in srgb, #ef4444 14%, var(--panel-muted));
+  color: #fecaca;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+
+.delete-button:hover:not(:disabled),
+.delete-button:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, #ef4444 70%, var(--border));
+}
+
+.delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
 }
 
 .note-summary {
@@ -146,6 +201,11 @@ h2 {
 
 @media (max-width: 960px) {
   .panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .note-meta-row {
     flex-direction: column;
     align-items: stretch;
   }

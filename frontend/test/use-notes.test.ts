@@ -152,4 +152,41 @@ describe('useNotes', () => {
     expect(notes.notes.value).toHaveLength(0);
     expect(fetchMock).toHaveBeenCalledTimes(6);
   });
+
+  it('selects the next available note after deleting the active one', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          notes: [
+            { id: 1, title: 'Daily log', content: 'First entry' },
+            { id: 2, title: 'Follow-up', content: 'Second entry' },
+            { id: 3, title: 'Retro', content: 'Third entry' }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          notes: [
+            { id: 1, title: 'Daily log', content: 'First entry' },
+            { id: 3, title: 'Retro', content: 'Third entry' }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const notes = useNotes();
+    await notes.loadNotes();
+
+    notes.selectNoteById(2);
+    await notes.deleteNote(2);
+
+    expect(notes.selectedNoteId.value).toBe(3);
+    expect(notes.selectedNote.value?.title).toBe('Retro');
+    expect(notes.notes.value).toHaveLength(2);
+    expect(notes.statusMessage.value).toBe('Note deleted.');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 });
