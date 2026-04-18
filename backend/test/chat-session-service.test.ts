@@ -25,14 +25,15 @@ test('chat session service persists turns and generates a session name after the
       messages: Array<{ role: string; content: string }>;
     }) {
       assert.equal(request.sessionId, 'session-abc');
-      return {
-        assistantMessage: {
-          role: 'assistant',
-          content: `Assistant reply ${request.messages.length}`
-        },
-        changedNoteIds: [],
-        notesChanged: false
-      };
+        return {
+          assistantMessage: {
+            role: 'assistant',
+            content: `Assistant reply ${request.messages.length}`
+          },
+          changedNoteIds: [],
+          openedNoteIds: [],
+          notesChanged: false
+        };
     }
   };
 
@@ -62,6 +63,7 @@ test('chat session service persists turns and generates a session name after the
         content: 'Assistant reply 1'
       },
       changedNoteIds: [],
+      openedNoteIds: [],
       notesChanged: false
     });
     assert.equal(repository.countUserTurns('session-abc'), 1);
@@ -91,6 +93,7 @@ test('chat session service persists turns and generates a session name after the
         content: 'Assistant reply 3'
       },
       changedNoteIds: [],
+      openedNoteIds: [],
       notesChanged: false
     });
     assert.equal(repository.countUserTurns('session-abc'), 2);
@@ -161,6 +164,7 @@ test('chat session service prunes expired rows before replying and refreshes ses
             content: 'Assistant reply after cleanup'
           },
           changedNoteIds: [],
+          openedNoteIds: [],
           notesChanged: false
         };
       }
@@ -184,6 +188,7 @@ test('chat session service prunes expired rows before replying and refreshes ses
         content: 'Assistant reply after cleanup'
       },
       changedNoteIds: [],
+      openedNoteIds: [],
       notesChanged: false
     });
     assert.equal(repository.getSessionById('session-expired'), null);
@@ -231,6 +236,7 @@ test('chat session service keeps the chat response working when naming fails', a
             content: 'Assistant reply'
           },
           changedNoteIds: [],
+          openedNoteIds: [],
           notesChanged: false
         };
       }
@@ -257,6 +263,7 @@ test('chat session service keeps the chat response working when naming fails', a
         content: 'Assistant reply'
       },
       changedNoteIds: [],
+      openedNoteIds: [],
       notesChanged: false
     });
 
@@ -284,6 +291,7 @@ test('chat session service keeps the chat response working when naming fails', a
         content: 'Assistant reply'
       },
       changedNoteIds: [],
+      openedNoteIds: [],
       notesChanged: false
     });
     assert.equal(repository.getSessionById('session-fail')?.name, null);

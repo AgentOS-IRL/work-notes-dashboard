@@ -125,7 +125,7 @@ test('conversation service uses note tools to inspect and update notes', async (
     });
 
     assert.deepEqual(bindToolsCalls, [
-      ['create_note', 'get_note', 'list_notes', 'update_note']
+      ['create_note', 'get_note', 'open_note', 'list_notes', 'update_note']
     ]);
     assert.equal(invocationMessages.length, 3);
     assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
@@ -133,6 +133,7 @@ test('conversation service uses note tools to inspect and update notes', async (
     assert.deepEqual(messageTypes(invocationMessages[2]), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
     assert.equal(response.notesChanged, true);
     assert.deepEqual(response.changedNoteIds, [1]);
+    assert.deepEqual(response.openedNoteIds, []);
     assert.deepEqual(response.assistantMessage, {
       role: 'assistant',
       content: 'Updated the sprint note.'
@@ -144,6 +145,105 @@ test('conversation service uses note tools to inspect and update notes', async (
       metadata: {
         created: '',
         updated: ['session-abc']
+      }
+    });
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('conversation service tracks opened notes separately from note changes', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-open-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+  repository.createNote({
+    title: 'Sprint plan',
+    content: 'Draft the kickoff note.'
+  });
+
+  const invocationMessages: Array<Array<{ getType(): string; content?: unknown }>> = [];
+  let invocationCount = 0;
+
+  const model = {
+    bindTools() {
+      return {
+        async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
+          invocationCount += 1;
+          invocationMessages.push(messages);
+
+          if (invocationCount === 1) {
+            assert.deepEqual(messageTypes(messages), ['system', 'human']);
+
+            return new AIMessage({
+              content: 'I will open the note.',
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  name: 'open_note',
+                  args: {
+                    id: 1
+                  }
+                }
+              ]
+            });
+          }
+
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+          assert.equal(
+            String(messages[3].content),
+            JSON.stringify({
+              note: {
+                id: 1,
+                title: 'Sprint plan',
+                content: 'Draft the kickoff note.',
+                metadata: {
+                  created: '',
+                  updated: []
+                }
+              }
+            })
+          );
+
+          return new AIMessage({
+            content: 'Opened the note for context.'
+          });
+        }
+      };
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+    const response = await service.replyToConversation({
+      sessionId: 'session-open',
+      messages: [
+        {
+          role: 'user',
+          content: 'Open the sprint plan.'
+        }
+      ]
+    });
+
+    assert.equal(invocationCount, 2);
+    assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
+    assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
+    assert.equal(response.notesChanged, false);
+    assert.deepEqual(response.changedNoteIds, []);
+    assert.deepEqual(response.openedNoteIds, [1]);
+    assert.deepEqual(response.assistantMessage, {
+      role: 'assistant',
+      content: 'Opened the note for context.'
+    });
+    assert.deepEqual(repository.getNoteById(1), {
+      id: 1,
+      title: 'Sprint plan',
+      content: 'Draft the kickoff note.',
+      metadata: {
+        created: '',
+        updated: []
       }
     });
   } finally {

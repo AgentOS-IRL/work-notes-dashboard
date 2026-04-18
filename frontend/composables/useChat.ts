@@ -48,7 +48,10 @@ export function formatChatSessionLabel(session: Pick<ChatSessionSummary, 'name' 
   }).format(new Date(session.createdAt));
 }
 
-export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) => void } = {}) {
+export function useChat(options: {
+  onNotesChanged?: (changedNoteIds: number[]) => void;
+  onNoteOpened?: (openedNoteIds: number[]) => void;
+} = {}) {
   const messages = ref<ChatMessage[]>([]);
   const sessions = ref<ChatSessionSummary[]>([]);
   const draft = ref('');
@@ -191,6 +194,10 @@ export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) =
 
       if (response.notesChanged) {
         options.onNotesChanged?.(response.changedNoteIds);
+      }
+
+      if (response.openedNoteIds.length > 0) {
+        options.onNoteOpened?.(response.openedNoteIds);
       }
 
       void refreshSessions();

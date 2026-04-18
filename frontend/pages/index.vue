@@ -31,6 +31,10 @@ function handleNotesChanged(changedNoteIds: number[]) {
   void loadNotes({ focusNoteIds: changedNoteIds });
 }
 
+function handleNoteOpened(openedNoteIds: number[]) {
+  void loadNotes({ focusNoteIds: openedNoteIds });
+}
+
 function handleSelectNote(noteId: number) {
   selectNoteById(noteId);
 }
@@ -73,6 +77,7 @@ function toggleWorkspaceMode() {
           <ChatPanel
             v-show="workspaceMode === 'chat-first'"
             @notes-changed="handleNotesChanged"
+            @note-opened="handleNoteOpened"
           />
 
           <NotesTree
