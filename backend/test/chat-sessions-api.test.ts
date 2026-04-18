@@ -31,11 +31,22 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
   const database = openSqliteDatabase(databasePath);
   initializeSqliteDatabase(database);
   database
-    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, ?, ?, ?, ?)')
-    .run('session-1', 'Named session', NOW - 2_000, NOW - 1_000, '{"created":[1],"updated":[1,2]}');
+    .prepare(
+      'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata, toolCalls) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    .run(
+      'session-1',
+      'Named session',
+      NOW - 2_000,
+      NOW - 1_000,
+      '{"created":[1],"updated":[1,2]}',
+      '[{"id":"call-1","name":"create_note","args":{"title":"Sprint plan"}}]'
+    );
   database
-    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, ?, ?, ?, ?)')
-    .run('session-2', null, NOW - 4_000, NOW - 2_000, '{"created":[],"updated":[3]}');
+    .prepare(
+      'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata, toolCalls) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    .run('session-2', null, NOW - 4_000, NOW - 2_000, '{"created":[],"updated":[3]}', null);
   database
     .prepare('INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)')
     .run('session-2', 'user', 'Draft a note.', NOW - 4_000);
@@ -68,7 +79,16 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
               metadata: {
                 created: [1],
                 updated: [1, 2]
-              }
+              },
+              toolCalls: [
+                {
+                  id: 'call-1',
+                  name: 'create_note',
+                  args: {
+                    title: 'Sprint plan'
+                  }
+                }
+              ]
             },
             {
               id: 'session-2',
@@ -78,7 +98,8 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
               metadata: {
                 created: [],
                 updated: [3]
-              }
+              },
+              toolCalls: []
             }
           ]
         });
@@ -97,7 +118,8 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
             metadata: {
               created: [],
               updated: [3]
-            }
+            },
+            toolCalls: []
           },
           messages: [
             {

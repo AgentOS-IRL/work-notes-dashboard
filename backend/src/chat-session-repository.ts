@@ -1,6 +1,6 @@
 import type { SqliteDatabase } from './db/sqlite';
 import { NotFoundError, ValidationError } from './notes-repository';
-import type { ChatRole } from './langchain/conversation';
+import type { ChatRole, ChatToolCall } from './langchain/conversation';
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -10,6 +10,7 @@ export interface ChatSession {
   createdAt: number;
   lastActivityAt: number;
   metadata: ChatSessionMetadata;
+  toolCalls: ChatToolCall[];
 }
 
 export interface ChatSessionMetadata {
@@ -62,7 +63,8 @@ function toChatSession(row: unknown): ChatSession {
     name: session.name ?? null,
     createdAt: session.createdAt,
     lastActivityAt: session.lastActivityAt,
-    metadata: normalizeChatSessionMetadata(session.metadata)
+    metadata: normalizeChatSessionMetadata(session.metadata),
+    toolCalls: normalizeChatSessionToolCalls(session.toolCalls)
   };
 }
 
@@ -135,6 +137,48 @@ function serializeChatSessionMetadata(metadata: ChatSessionMetadata) {
   return JSON.stringify(normalizeChatSessionMetadata(metadata));
 }
 
+function normalizeChatSessionToolCalls(rawToolCalls: unknown): ChatToolCall[] {
+  const parsedToolCalls =
+    typeof rawToolCalls === 'string'
+      ? (() => {
+          if (rawToolCalls.trim() === '') {
+            return null;
+          }
+
+          try {
+            return JSON.parse(rawToolCalls) as unknown;
+          } catch {
+            return null;
+          }
+        })()
+      : rawToolCalls;
+
+  if (!Array.isArray(parsedToolCalls)) {
+    return [];
+  }
+
+  const normalizedToolCalls: ChatToolCall[] = [];
+
+  for (const entry of parsedToolCalls) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      continue;
+    }
+
+    normalizedToolCalls.push({ ...(entry as Record<string, unknown>) });
+  }
+
+  return normalizedToolCalls;
+}
+
+function serializeChatSessionToolCalls(toolCalls: ChatToolCall[]) {
+  const normalizedToolCalls = normalizeChatSessionToolCalls(toolCalls);
+  if (normalizedToolCalls.length === 0) {
+    return null;
+  }
+
+  return JSON.stringify(normalizedToolCalls);
+}
+
 function mergeChatSessionMetadata(
   currentMetadata: ChatSessionMetadata | null,
   nextMetadata: Partial<ChatSessionMetadata>
@@ -161,6 +205,20 @@ function mergeChatSessionMetadata(
     created,
     updated
   };
+}
+
+function mergeChatSessionToolCalls(
+  currentToolCalls: ChatToolCall[] | null,
+  nextToolCalls: ChatToolCall[]
+): ChatToolCall[] {
+  const current = currentToolCalls ?? [];
+  const normalizedNextToolCalls = normalizeChatSessionToolCalls(nextToolCalls);
+
+  if (normalizedNextToolCalls.length === 0) {
+    return current;
+  }
+
+  return [...current, ...normalizedNextToolCalls];
 }
 
 function toChatMessage(row: unknown): ChatMessage {
@@ -203,7 +261,9 @@ export class ChatSessionRepository {
   getSessionById(sessionId: string): ChatSession | null {
     const normalizedSessionId = assertSessionId(sessionId);
     const session = this.database
-      .prepare('SELECT id, name, createdAt, lastActivityAt, metadata FROM chat_sessions WHERE id = ?')
+      .prepare(
+        'SELECT id, name, createdAt, lastActivityAt, metadata, toolCalls FROM chat_sessions WHERE id = ?'
+      )
       .get(normalizedSessionId);
 
     if (!session) {
@@ -223,7 +283,7 @@ export class ChatSessionRepository {
     const timestamp = this.now();
     this.database
       .prepare(
-        'INSERT OR IGNORE INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, NULL, ?, ?, ?)'
+        'INSERT OR IGNORE INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata, toolCalls) VALUES (?, NULL, ?, ?, ?, NULL)'
       )
       .run(normalizedSessionId, timestamp, timestamp, serializeChatSessionMetadata(createEmptyChatSessionMetadata()));
 
@@ -241,7 +301,8 @@ export class ChatSessionRepository {
   recordConversationTurn(
     sessionId: string,
     userContent: string,
-    assistantContent: string
+    assistantContent: string,
+    assistantToolCalls: ChatToolCall[] = []
   ): {
     session: ChatSession;
     userMessage: ChatMessage;
@@ -264,12 +325,28 @@ export class ChatSessionRepository {
         'assistant',
         normalizedAssistantContent
       );
+      const normalizedAssistantToolCalls = normalizeChatSessionToolCalls(assistantToolCalls);
+      if (normalizedAssistantToolCalls.length > 0) {
+        const currentSession = this.requireSession(normalizedSessionId);
+        const mergedToolCalls = mergeChatSessionToolCalls(
+          currentSession.toolCalls,
+          normalizedAssistantToolCalls
+        );
 
-        return {
-          session: this.requireSession(normalizedSessionId),
-          userMessage,
-          assistantMessage
-        };
+        const result = this.database
+          .prepare('UPDATE chat_sessions SET toolCalls = ? WHERE id = ?')
+          .run(serializeChatSessionToolCalls(mergedToolCalls), normalizedSessionId);
+
+        if (result.changes === 0) {
+          throw new NotFoundError(`Session ${normalizedSessionId} was not found.`);
+        }
+      }
+
+      return {
+        session: this.requireSession(normalizedSessionId),
+        userMessage,
+        assistantMessage
+      };
     });
 
     return transaction();
@@ -300,6 +377,7 @@ export class ChatSessionRepository {
         `
           SELECT id, name, createdAt, lastActivityAt
           , metadata
+          , toolCalls
           FROM chat_sessions
           WHERE lastActivityAt >= ?
           ORDER BY lastActivityAt DESC, createdAt DESC, id DESC

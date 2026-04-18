@@ -30,6 +30,7 @@ test('chat session service persists turns and generates a session name after the
             role: 'assistant',
             content: `Assistant reply ${request.messages.length}`
           },
+          toolCalls: [],
           createdNoteIds: [],
           updatedNoteIds: [],
           changedNoteIds: [],
@@ -64,6 +65,7 @@ test('chat session service persists turns and generates a session name after the
         role: 'assistant',
         content: 'Assistant reply 1'
       },
+      toolCalls: [],
       createdNoteIds: [],
       updatedNoteIds: [],
       changedNoteIds: [],
@@ -96,6 +98,7 @@ test('chat session service persists turns and generates a session name after the
         role: 'assistant',
         content: 'Assistant reply 3'
       },
+      toolCalls: [],
       createdNoteIds: [],
       updatedNoteIds: [],
       changedNoteIds: [],
@@ -169,6 +172,7 @@ test('chat session service prunes expired rows before replying and refreshes ses
             role: 'assistant',
             content: 'Assistant reply after cleanup'
           },
+          toolCalls: [],
           createdNoteIds: [],
           updatedNoteIds: [],
           changedNoteIds: [],
@@ -195,6 +199,7 @@ test('chat session service prunes expired rows before replying and refreshes ses
         role: 'assistant',
         content: 'Assistant reply after cleanup'
       },
+      toolCalls: [],
       createdNoteIds: [],
       updatedNoteIds: [],
       changedNoteIds: [],
@@ -245,6 +250,7 @@ test('chat session service keeps the chat response working when naming fails', a
             role: 'assistant',
             content: 'Assistant reply'
           },
+          toolCalls: [],
           createdNoteIds: [],
           updatedNoteIds: [],
           changedNoteIds: [],
@@ -274,6 +280,7 @@ test('chat session service keeps the chat response working when naming fails', a
         role: 'assistant',
         content: 'Assistant reply'
       },
+      toolCalls: [],
       createdNoteIds: [],
       updatedNoteIds: [],
       changedNoteIds: [],
@@ -304,6 +311,7 @@ test('chat session service keeps the chat response working when naming fails', a
         role: 'assistant',
         content: 'Assistant reply'
       },
+      toolCalls: [],
       createdNoteIds: [],
       updatedNoteIds: [],
       changedNoteIds: [],
@@ -334,6 +342,15 @@ test('chat session service persists created and updated note metadata', async ()
             role: 'assistant',
             content: 'Created and updated notes.'
           },
+          toolCalls: [
+            {
+              id: 'call-1',
+              name: 'create_note',
+              args: {
+                title: 'Session summary'
+              }
+            }
+          ],
           createdNoteIds: [10, 11, 10],
           updatedNoteIds: [11, 12, 12],
           changedNoteIds: [10, 11, 12],
@@ -360,6 +377,15 @@ test('chat session service persists created and updated note metadata', async ()
         role: 'assistant',
         content: 'Created and updated notes.'
       },
+      toolCalls: [
+        {
+          id: 'call-1',
+          name: 'create_note',
+          args: {
+            title: 'Session summary'
+          }
+        }
+      ],
       createdNoteIds: [10, 11, 10],
       updatedNoteIds: [11, 12, 12],
       changedNoteIds: [10, 11, 12],
@@ -370,6 +396,15 @@ test('chat session service persists created and updated note metadata', async ()
       created: [10, 11],
       updated: [11, 12]
     });
+    assert.deepEqual(repository.getSessionById('session-metadata')?.toolCalls, [
+      {
+        id: 'call-1',
+        name: 'create_note',
+        args: {
+          title: 'Session summary'
+        }
+      }
+    ]);
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });

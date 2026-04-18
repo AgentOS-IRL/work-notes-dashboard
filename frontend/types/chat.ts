@@ -20,12 +20,15 @@ export interface ChatSessionSummary {
   createdAt: number;
   lastActivityAt: number;
   metadata: ChatSessionMetadata;
+  toolCalls: ChatToolCall[];
 }
 
 export interface ChatSessionMetadata {
   created: number[];
   updated: number[];
 }
+
+export type ChatToolCall = Record<string, unknown>;
 
 export interface ChatSessionListResponse {
   sessions: ChatSessionSummary[];
@@ -38,6 +41,7 @@ export interface ChatSessionDetailResponse {
 
 export interface ChatResponse {
   assistantMessage: ChatTurn;
+  toolCalls: ChatToolCall[];
   createdNoteIds: number[];
   updatedNoteIds: number[];
   changedNoteIds: number[];

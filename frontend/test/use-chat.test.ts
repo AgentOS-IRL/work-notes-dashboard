@@ -24,7 +24,16 @@ describe('useChat', () => {
             metadata: {
               created: [1],
               updated: [1]
-            }
+            },
+            toolCalls: [
+              {
+                id: 'call-1',
+                name: 'create_note',
+                args: {
+                  title: 'Weekly update'
+                }
+              }
+            ]
           },
           {
             id: 'session-2',
@@ -34,7 +43,8 @@ describe('useChat', () => {
             metadata: {
               created: [],
               updated: []
-            }
+            },
+            toolCalls: []
           }
         ]
       })
@@ -53,6 +63,7 @@ describe('useChat', () => {
     );
     expect(chat.sessions.value).toHaveLength(2);
     expect(chat.sessions.value[0].label).toBe('Named session');
+    expect(chat.sessions.value[0].toolCalls).toHaveLength(1);
     expect(chat.sessions.value[1].label).toMatch(/2023|2024|2025|2026/);
     expect(chat.sessions.value[1].label).toMatch(/:/);
     expect(
@@ -78,7 +89,16 @@ describe('useChat', () => {
               metadata: {
                 created: [],
                 updated: []
-              }
+              },
+              toolCalls: [
+                {
+                  id: 'call-1',
+                  name: 'create_note',
+                  args: {
+                    title: 'Weekly update'
+                  }
+                }
+              ]
             }
           ]
         })
@@ -93,7 +113,16 @@ describe('useChat', () => {
             metadata: {
               created: [],
               updated: [1]
-            }
+            },
+            toolCalls: [
+              {
+                id: 'call-1',
+                name: 'create_note',
+                args: {
+                  title: 'Weekly update'
+                }
+              }
+            ]
           },
           messages: [
             {
@@ -120,7 +149,16 @@ describe('useChat', () => {
               metadata: {
                 created: [],
                 updated: [1]
-              }
+              },
+              toolCalls: [
+                {
+                  id: 'call-1',
+                  name: 'create_note',
+                  args: {
+                    title: 'Weekly update'
+                  }
+                }
+              ]
             }
           ]
         })
@@ -131,6 +169,7 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I refined the sprint plan.'
           },
+          toolCalls: [],
           createdNoteIds: [1],
           updatedNoteIds: [1],
           changedNoteIds: [1],
@@ -149,7 +188,16 @@ describe('useChat', () => {
               metadata: {
                 created: [1],
                 updated: [1]
-              }
+              },
+              toolCalls: [
+                {
+                  id: 'call-1',
+                  name: 'create_note',
+                  args: {
+                    title: 'Weekly update'
+                  }
+                }
+              ]
             }
           ]
         })
@@ -167,6 +215,7 @@ describe('useChat', () => {
     expect(chat.sessionId.value).toBe('session-1');
     expect(chat.selectedSessionId.value).toBe('session-1');
     expect(chat.messages.value).toHaveLength(2);
+    expect(chat.sessions.value[0].toolCalls).toHaveLength(1);
     expect(chat.draft.value).toBe('');
 
     chat.draft.value = 'Refine the sprint plan.';
@@ -225,6 +274,7 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I opened the sprint plan note.'
           },
+          toolCalls: [],
           createdNoteIds: [],
           updatedNoteIds: [],
           changedNoteIds: [],
@@ -262,6 +312,7 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I updated and opened the sprint plan note.'
           },
+          toolCalls: [],
           createdNoteIds: [2],
           updatedNoteIds: [2],
           changedNoteIds: [2],
@@ -305,6 +356,7 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'Ready for the next prompt.'
           },
+          toolCalls: [],
           createdNoteIds: [],
           updatedNoteIds: [],
           changedNoteIds: [],
@@ -361,7 +413,8 @@ describe('useChat', () => {
               metadata: {
                 created: [],
                 updated: []
-              }
+              },
+              toolCalls: []
             }
           ]
         })

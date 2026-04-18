@@ -46,7 +46,8 @@ export function createChatSessionService(options: {
       const persistedTurn = options.repository.recordConversationTurn(
         request.sessionId,
         latestMessage.content,
-        response.assistantMessage.content
+        response.assistantMessage.content,
+        response.toolCalls
       );
 
       const session = options.repository.updateSessionMetadata(persistedTurn.session.id, {
