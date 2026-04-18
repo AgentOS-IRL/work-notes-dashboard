@@ -65,7 +65,12 @@ test('conversation service uses note tools to inspect and update notes', async (
             assert.equal(
               String(messages[3].content),
               JSON.stringify({
-                titles: ['Meeting notes']
+                notes: [
+                  {
+                    id: 2,
+                    title: 'Meeting notes'
+                  }
+                ]
               })
             );
 

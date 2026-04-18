@@ -59,17 +59,47 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
 
     const listed = await tools.listNotesTool.invoke({});
     assert.deepEqual(listed, {
-      titles: [
-        'Sprint plan',
-        'Note 2',
-        'Note 3',
-        'Note 4',
-        'Note 5',
-        'Note 6',
-        'Note 7',
-        'Note 8',
-        'Note 9',
-        'Note 10'
+      notes: [
+        {
+          id: 1,
+          title: 'Sprint plan'
+        },
+        {
+          id: 2,
+          title: 'Note 2'
+        },
+        {
+          id: 3,
+          title: 'Note 3'
+        },
+        {
+          id: 4,
+          title: 'Note 4'
+        },
+        {
+          id: 5,
+          title: 'Note 5'
+        },
+        {
+          id: 6,
+          title: 'Note 6'
+        },
+        {
+          id: 7,
+          title: 'Note 7'
+        },
+        {
+          id: 8,
+          title: 'Note 8'
+        },
+        {
+          id: 9,
+          title: 'Note 9'
+        },
+        {
+          id: 10,
+          title: 'Note 10'
+        }
       ]
     });
 
@@ -78,7 +108,20 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
       offset: 8
     });
     assert.deepEqual(paged, {
-      titles: ['Note 9', 'Note 10', 'Note 11']
+      notes: [
+        {
+          id: 9,
+          title: 'Note 9'
+        },
+        {
+          id: 10,
+          title: 'Note 10'
+        },
+        {
+          id: 11,
+          title: 'Note 11'
+        }
+      ]
     });
 
     const updated = await tools.updateNoteTool.invoke({
@@ -139,7 +182,7 @@ test('listNotesTool returns an empty list for an empty repository', async () => 
     const listed = await tools.listNotesTool.invoke({});
 
     assert.deepEqual(listed, {
-      titles: []
+      notes: []
     });
   } finally {
     database.close();
