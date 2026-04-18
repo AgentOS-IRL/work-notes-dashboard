@@ -71,3 +71,86 @@ test('initializeSqliteDatabase does not reapply migrations on a second startup',
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test('initializeSqliteDatabase repairs a partially migrated timestamp schema', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-migrations-partial-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL
+      );
+
+      CREATE TABLE chat_sessions (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        createdAt INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE chat_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sessionId TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+        content TEXT NOT NULL,
+        FOREIGN KEY (sessionId) REFERENCES chat_sessions(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO chat_sessions (id, name, createdAt) VALUES ('session-partial', 'Partial Session', 12345);
+      INSERT INTO chat_messages (sessionId, role, content) VALUES (
+        'session-partial',
+        'user',
+        'Partial message'
+      );
+    `);
+
+    initializeSqliteDatabase(database);
+
+    const sessionColumns = database
+      .prepare('PRAGMA table_info(chat_sessions)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(sessionColumns.map((column) => column.name), [
+      'id',
+      'name',
+      'createdAt',
+      'lastActivityAt'
+    ]);
+
+    const messageColumns = database
+      .prepare('PRAGMA table_info(chat_messages)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(messageColumns.map((column) => column.name), [
+      'id',
+      'sessionId',
+      'role',
+      'content',
+      'createdAt'
+    ]);
+    assert.deepEqual(
+      database
+        .prepare('SELECT name FROM _migrations ORDER BY id')
+        .all()
+        .map((row) => (row as { name: string }).name),
+      ['001_initial.sql', '002_add_timestamps.sql']
+    );
+
+    const session = database
+      .prepare('SELECT createdAt, lastActivityAt FROM chat_sessions WHERE id = ?')
+      .get('session-partial') as { createdAt: number; lastActivityAt: number } | undefined;
+    assert.ok(session);
+    assert.equal(session?.createdAt, 12345);
+    assert.ok((session?.lastActivityAt ?? 0) > 0);
+
+    const message = database
+      .prepare('SELECT createdAt FROM chat_messages WHERE sessionId = ?')
+      .get('session-partial') as { createdAt: number } | undefined;
+    assert.ok(message);
+    assert.ok((message?.createdAt ?? 0) > 0);
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});

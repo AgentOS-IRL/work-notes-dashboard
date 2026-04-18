@@ -41,6 +41,12 @@ function hasColumns(database: SqliteDatabase, tableName: string, columnNames: st
   return columnNames.every((columnName) => columns.has(columnName));
 }
 
+function ensureColumn(database: SqliteDatabase, tableName: string, columnName: string, sql: string) {
+  if (!hasColumns(database, tableName, [columnName])) {
+    database.exec(sql);
+  }
+}
+
 function listMigrationFiles() {
   if (!fs.existsSync(MIGRATION_DIRECTORY)) {
     return [];
@@ -66,13 +72,55 @@ export function runMigrations(database: SqliteDatabase) {
   );
 
   const executeMigration = database.transaction((fileName: string, sql: string) => {
+    const timestamp = Date.now();
     database.exec(sql);
-    insertMigration.run(fileName, Date.now());
+    insertMigration.run(fileName, timestamp);
   });
 
-  const skipTimestampMigration = database.transaction((fileName: string) => {
+  const applyTimestampMigration = database.transaction((fileName: string) => {
+    const timestamp = Date.now();
+
+    ensureColumn(
+      database,
+      'chat_sessions',
+      'createdAt',
+      `
+        ALTER TABLE chat_sessions
+        ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0;
+      `
+    );
+    ensureColumn(
+      database,
+      'chat_sessions',
+      'lastActivityAt',
+      `
+        ALTER TABLE chat_sessions
+        ADD COLUMN lastActivityAt INTEGER NOT NULL DEFAULT 0;
+      `
+    );
+    ensureColumn(
+      database,
+      'chat_messages',
+      'createdAt',
+      `
+        ALTER TABLE chat_messages
+        ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0;
+      `
+    );
+
     database.exec(TIMESTAMP_INDEXES);
-    insertMigration.run(fileName, Date.now());
+
+    database
+      .prepare('UPDATE chat_sessions SET lastActivityAt = ? WHERE lastActivityAt = 0')
+      .run(timestamp);
+    database
+      .prepare('UPDATE chat_sessions SET createdAt = lastActivityAt WHERE createdAt = 0')
+      .run();
+    database
+      .prepare('UPDATE chat_messages SET createdAt = ? WHERE createdAt = 0')
+      .run(timestamp);
+
+    insertMigration.run(fileName, timestamp);
   });
 
   for (const fileName of migrationFiles) {
@@ -83,15 +131,9 @@ export function runMigrations(database: SqliteDatabase) {
     const sql = fs.readFileSync(path.join(MIGRATION_DIRECTORY, fileName), 'utf8');
 
     if (fileName === '002_add_timestamps.sql') {
-      const hasTimestampColumns =
-        hasColumns(database, 'chat_sessions', ['createdAt', 'lastActivityAt']) &&
-        hasColumns(database, 'chat_messages', ['createdAt']);
-
-      if (hasTimestampColumns) {
-        skipTimestampMigration(fileName);
-        console.log(`Applied migration: ${fileName}`);
-        continue;
-      }
+      applyTimestampMigration(fileName);
+      console.log(`Applied migration: ${fileName}`);
+      continue;
     }
 
     executeMigration(fileName, sql);
