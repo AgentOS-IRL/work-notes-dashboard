@@ -7,9 +7,12 @@ import { createConversationService } from './langchain';
 import { createChatRouter } from './routes/chat';
 import { createNotesRouter } from './routes/notes';
 import { initializeSqliteDatabase, openSqliteDatabase } from './db/sqlite';
+import { ChatSessionRepository } from './chat-session-repository';
+import { createChatSessionService } from './chat-session-service';
 import { NotesRepository } from './notes-repository';
 import { resolveDatabasePath } from './config';
 import type { ConversationService } from './langchain';
+import type { ChatSessionService } from './chat-session-service';
 
 export function createServer(options: {
   port?: number;
@@ -26,7 +29,9 @@ export function createServer(options: {
   const database = openSqliteDatabase(databasePath);
   initializeSqliteDatabase(database);
   const notesRepository = new NotesRepository(database);
+  const chatSessionRepository = new ChatSessionRepository(database);
   let conversationService = options.conversationService ?? null;
+  let chatSessionService: ChatSessionService | null = null;
 
   function getConversationService() {
     if (!conversationService) {
@@ -38,12 +43,23 @@ export function createServer(options: {
     return conversationService;
   }
 
+  function getChatSessionService() {
+    if (!chatSessionService) {
+      chatSessionService = createChatSessionService({
+        repository: chatSessionRepository,
+        conversationService: getConversationService()
+      });
+    }
+
+    return chatSessionService;
+  }
+
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true });
   });
 
   app.use(express.json());
-  app.use('/api/chat', createChatRouter(getConversationService));
+  app.use('/api/chat', createChatRouter(getChatSessionService));
   app.use('/api/notes', createNotesRouter(notesRepository));
   configureFrontendStatic(app, frontendBasePath, frontendDistPath);
 

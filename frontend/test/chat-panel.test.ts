@@ -32,6 +32,7 @@ describe('ChatPanel', () => {
     expect(wrapper.find('header.panel-header').exists()).toBe(true);
     expect(wrapper.find('.status-token').text()).toBe('~/notes');
     expect(wrapper.find('.status-pill').text()).toBe('ready');
+    expect(wrapper.get('button.clear-button').text()).toBe('Clear');
     expect(wrapper.findAll('.prompt-chip')).toHaveLength(3);
     expect(wrapper.find('form.composer').exists()).toBe(true);
 
@@ -45,6 +46,34 @@ describe('ChatPanel', () => {
     expect(wrapper.find('.message.assistant').text()).toContain('I updated the sprint plan note.');
     expect(wrapper.emitted('notes-changed')).toEqual([[[1]]]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the transcript and rotates the session id', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        assistantMessage: {
+          role: 'assistant',
+          content: 'I updated the sprint plan note.'
+        },
+        changedNoteIds: [],
+        notesChanged: false
+      })
+    );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const wrapper = mount(ChatPanel);
+    const initialSessionId = wrapper.vm.sessionId as string;
+
+    await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
+    await wrapper.get('form.composer').trigger('submit');
+    await flushPromises();
+
+    await wrapper.get('button.clear-button').trigger('click');
+
+    expect(wrapper.findAll('.message')).toHaveLength(0);
+    expect(wrapper.find('.status-pill').text()).toBe('ready');
+    expect(wrapper.vm.sessionId).not.toBe(initialSessionId);
   });
 
   it('keeps Shift+Enter available for new lines in the composer', async () => {

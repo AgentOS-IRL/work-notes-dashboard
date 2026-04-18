@@ -23,12 +23,34 @@ export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) =
   const draft = ref('');
   const isSending = ref(false);
   const errorMessage = ref('');
-  let nextMessageId = 2;
+  const sessionId = ref(createSessionId());
+  let nextMessageId = 1;
 
   const hasMessages = computed(() => messages.value.length > 0);
 
+  function createSessionId() {
+    const cryptoObject = globalThis.crypto as { randomUUID?: () => string } | undefined;
+    if (cryptoObject?.randomUUID) {
+      return cryptoObject.randomUUID();
+    }
+
+    return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
   function addSuggestion(text: string) {
     draft.value = text;
+  }
+
+  function resetChat() {
+    if (isSending.value) {
+      return;
+    }
+
+    sessionId.value = createSessionId();
+    messages.value = [];
+    draft.value = '';
+    errorMessage.value = '';
+    nextMessageId = 1;
   }
 
   async function sendMessage() {
@@ -55,6 +77,7 @@ export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) =
       const response = await requestJson<ChatResponse>('/api/chat', {
         method: 'POST',
         body: JSON.stringify({
+          sessionId: sessionId.value,
           messages: nextMessages
         } satisfies ChatRequest)
       });
@@ -83,11 +106,13 @@ export function useChat(options: { onNotesChanged?: (changedNoteIds: number[]) =
 
   return {
     messages,
+    sessionId,
     draft,
     isSending,
     errorMessage,
     hasMessages,
     addSuggestion,
-    sendMessage
+    sendMessage,
+    resetChat
   };
 }

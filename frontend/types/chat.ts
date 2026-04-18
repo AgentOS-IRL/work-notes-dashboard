@@ -10,6 +10,7 @@ export interface ChatMessage extends ChatTurn {
 }
 
 export interface ChatRequest {
+  sessionId: string;
   messages: ChatMessage[];
 }
 

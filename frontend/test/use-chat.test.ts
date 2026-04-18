@@ -31,6 +31,8 @@ describe('useChat', () => {
       onNotesChanged: notesChanged
     });
 
+    expect(chat.sessionId.value).toBeTruthy();
+
     chat.draft.value = 'Refine the sprint plan.';
     await chat.sendMessage();
 
@@ -42,9 +44,11 @@ describe('useChat', () => {
     );
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1]?.body as string) as {
+      sessionId: string;
       messages: Array<{ role: string; content: string }>;
     };
 
+    expect(requestBody.sessionId).toBe(chat.sessionId.value);
     expect(requestBody.messages).toHaveLength(1);
     expect(requestBody.messages[0]).toMatchObject({
       role: 'user',
@@ -56,6 +60,34 @@ describe('useChat', () => {
       content: 'I refined the sprint plan.'
     });
     expect(notesChanged).toHaveBeenCalledWith([1]);
+  });
+
+  it('resets the transcript and session id when cleared', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        assistantMessage: {
+          role: 'assistant',
+          content: 'Ready for the next prompt.'
+        },
+        changedNoteIds: [],
+        notesChanged: false
+      })
+    );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat();
+    const initialSessionId = chat.sessionId.value;
+
+    chat.draft.value = 'Start a session.';
+    await chat.sendMessage();
+    chat.resetChat();
+
+    expect(chat.sessionId.value).not.toBe(initialSessionId);
+    expect(chat.messages.value).toHaveLength(0);
+    expect(chat.draft.value).toBe('');
+    expect(chat.errorMessage.value).toBe('');
+    expect(chat.hasMessages.value).toBe(false);
   });
 
   it('rolls back the optimistic user turn when the request fails', async () => {

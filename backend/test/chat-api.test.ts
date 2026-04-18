@@ -6,6 +6,8 @@ import test from 'node:test';
 import request from 'supertest';
 
 import { createServer } from '../src/server';
+import { ChatSessionRepository } from '../src/chat-session-repository';
+import { initializeSqliteDatabase, openSqliteDatabase } from '../src/db/sqlite';
 
 function createTempFrontendDist() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-api-'));
@@ -25,6 +27,9 @@ function createTempFrontendDist() {
 test('chat API returns assistant replies and note change metadata', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-db-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  database.close();
   const { tempRoot: frontendRoot, frontendDistPath } = createTempFrontendDist();
   const conversationService = {
     async replyToConversation(requestBody: { messages: Array<{ role: string; content: string }> }) {
@@ -55,6 +60,7 @@ test('chat API returns assistant replies and note change metadata', async () => 
     await request(server.app)
       .post('/api/chat')
       .send({
+        sessionId: 'session-123',
         messages: [
           {
             role: 'user',
@@ -74,12 +80,45 @@ test('chat API returns assistant replies and note change metadata', async () => 
         });
       });
 
+    const verificationDatabase = openSqliteDatabase(databasePath);
+    initializeSqliteDatabase(verificationDatabase);
+
+    try {
+      const repository = new ChatSessionRepository(verificationDatabase);
+
+      assert.deepEqual(repository.getSessionById('session-123'), {
+        id: 'session-123',
+        name: null
+      });
+      assert.deepEqual(
+        repository.getRecentMessages('session-123', 10).map((message) => ({
+          role: message.role,
+          content: message.content
+        })),
+        [
+          {
+            role: 'user',
+            content: 'Refine the sprint plan.'
+          },
+          {
+            role: 'assistant',
+            content: 'I updated the sprint plan note.'
+          }
+        ]
+      );
+    } finally {
+      verificationDatabase.close();
+    }
+
     await request(server.app)
       .post('/api/chat')
       .send({})
       .expect(400)
       .expect((response) => {
-        assert.equal(response.body.error, 'Request body must include a non-empty messages array.');
+        assert.equal(
+          response.body.error,
+          'Request body must include a sessionId and a non-empty messages array.'
+        );
       });
   } finally {
     server.close();
@@ -87,4 +126,3 @@ test('chat API returns assistant replies and note change metadata', async () => 
     fs.rmSync(frontendRoot, { recursive: true, force: true });
   }
 });
-
