@@ -5,6 +5,7 @@ import {
 } from './frontend-static';
 import { createConversationService } from './langchain';
 import { createChatRouter } from './routes/chat';
+import { createChatSessionsRouter } from './routes/chat-sessions';
 import { createNotesRouter } from './routes/notes';
 import { initializeSqliteDatabase, openSqliteDatabase } from './db/sqlite';
 import { ChatSessionRepository } from './chat-session-repository';
@@ -70,6 +71,7 @@ export function createServer(options: {
   });
 
   app.use(express.json());
+  app.use('/api/chat/sessions', createChatSessionsRouter(chatSessionRepository));
   app.use('/api/chat', createChatRouter(getChatSessionService));
   app.use('/api/notes', createNotesRouter(notesRepository));
   configureFrontendStatic(app, frontendBasePath, frontendDistPath);

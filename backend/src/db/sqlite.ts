@@ -31,6 +31,7 @@ export function initializeSqliteDatabase(database: SqliteDatabase) {
     CREATE TABLE IF NOT EXISTS chat_sessions (
       id TEXT PRIMARY KEY,
       name TEXT,
+      createdAt INTEGER NOT NULL,
       lastActivityAt INTEGER NOT NULL
     );
 
@@ -51,6 +52,13 @@ export function initializeSqliteDatabase(database: SqliteDatabase) {
     `);
   }
 
+  if (!tableHasColumn(database, 'chat_sessions', 'createdAt')) {
+    database.exec(`
+      ALTER TABLE chat_sessions
+      ADD COLUMN createdAt INTEGER NOT NULL DEFAULT 0;
+    `);
+  }
+
   if (!tableHasColumn(database, 'chat_messages', 'createdAt')) {
     database.exec(`
       ALTER TABLE chat_messages
@@ -62,6 +70,9 @@ export function initializeSqliteDatabase(database: SqliteDatabase) {
   database
     .prepare('UPDATE chat_sessions SET lastActivityAt = ? WHERE lastActivityAt = 0')
     .run(migrationTimestamp);
+  database
+    .prepare('UPDATE chat_sessions SET createdAt = lastActivityAt WHERE createdAt = 0')
+    .run();
   database
     .prepare('UPDATE chat_messages SET createdAt = ? WHERE createdAt = 0')
     .run(migrationTimestamp);

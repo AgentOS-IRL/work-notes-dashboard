@@ -58,8 +58,8 @@ test('createServer prunes expired chat storage during startup', () => {
   const database = openSqliteDatabase(databasePath);
   initializeSqliteDatabase(database);
   database
-    .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
-    .run('session-expired', 'Expired Session', NOW - WEEK_MS - 1);
+    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+    .run('session-expired', 'Expired Session', NOW - WEEK_MS - 1, NOW - WEEK_MS - 1);
   database
     .prepare('INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)')
     .run('session-expired', 'user', 'Expired message.', NOW - WEEK_MS - 1);

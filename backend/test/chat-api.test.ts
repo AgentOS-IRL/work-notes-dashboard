@@ -70,8 +70,8 @@ test('chat API returns assistant replies and note change metadata', async () => 
   serverState.current = server;
 
   server.database
-    .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
-    .run('session-expired', 'Expired Session', NOW - WEEK_MS - 1);
+    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+    .run('session-expired', 'Expired Session', NOW - WEEK_MS - 1, NOW - WEEK_MS - 1);
   server.database
     .prepare('INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)')
     .run('session-expired', 'user', 'Expired message.', NOW - WEEK_MS - 1);
@@ -105,6 +105,7 @@ test('chat API returns assistant replies and note change metadata', async () => 
     assert.deepEqual(repository.getSessionById('session-123'), {
       id: 'session-123',
       name: null,
+      createdAt: NOW,
       lastActivityAt: NOW
     });
     assert.deepEqual(

@@ -36,6 +36,7 @@ test('initializeSqliteDatabase creates the chat session tables', () => {
     assert.deepEqual(sessionColumns.map((column) => column.name), [
       'id',
       'name',
+      'createdAt',
       'lastActivityAt'
     ]);
 
@@ -115,7 +116,8 @@ test('initializeSqliteDatabase migrates legacy chat tables with timestamp column
     assert.deepEqual(sessionColumns.map((column) => column.name), [
       'id',
       'name',
-      'lastActivityAt'
+      'lastActivityAt',
+      'createdAt'
     ]);
 
     const messageColumns = database
@@ -133,8 +135,10 @@ test('initializeSqliteDatabase migrates legacy chat tables with timestamp column
     const session = repository.getSessionById('session-legacy');
     assert.ok(session);
     assert.equal(session?.name, 'Legacy Session');
+    assert.equal(typeof session?.createdAt, 'number');
     assert.equal(typeof session?.lastActivityAt, 'number');
     assert.ok((session?.lastActivityAt ?? 0) > 0);
+    assert.equal(session?.createdAt, session?.lastActivityAt);
 
     const messages = repository.getRecentMessages('session-legacy', 10);
     assert.equal(messages.length, 1);
@@ -159,6 +163,7 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
     assert.deepEqual(created, {
       id: 'session-123',
       name: null,
+      createdAt: NOW,
       lastActivityAt: NOW
     });
 
@@ -183,9 +188,134 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
     assert.deepEqual(renamed, {
       id: 'session-123',
       name: 'Weekly update',
+      createdAt: NOW,
       lastActivityAt: NOW
     });
     assert.deepEqual(repository.getSessionById('session-123'), renamed);
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('ChatSessionRepository lists sessions by recency and loads full transcripts', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-list-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new ChatSessionRepository(database, { now: () => NOW });
+
+  try {
+    database
+      .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+      .run('session-old', null, NOW - 5_000, NOW - 5_000);
+    database
+      .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+      .run('session-new', 'Named session', NOW - 1_000, NOW - 1_000);
+    database
+      .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+      .run('session-middle', null, NOW - 2_000, NOW - 2_000);
+    database
+      .prepare(
+        'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-middle', 'user', 'First', NOW - 2_000);
+    database
+      .prepare(
+        'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-middle', 'assistant', 'Second', NOW - 1_500);
+    database
+      .prepare(
+        'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-middle', 'user', 'Third', NOW - 1_000);
+
+    const sessions = repository.listRecentSessions(10);
+    assert.deepEqual(
+      sessions.map((session) => ({
+        id: session.id,
+        name: session.name,
+        createdAt: session.createdAt,
+        lastActivityAt: session.lastActivityAt
+      })),
+      [
+        {
+          id: 'session-new',
+          name: 'Named session',
+          createdAt: NOW - 1_000,
+          lastActivityAt: NOW - 1_000
+        },
+        {
+          id: 'session-middle',
+          name: null,
+          createdAt: NOW - 2_000,
+          lastActivityAt: NOW - 2_000
+        },
+        {
+          id: 'session-old',
+          name: null,
+          createdAt: NOW - 5_000,
+          lastActivityAt: NOW - 5_000
+        }
+      ]
+    );
+
+    database
+      .prepare(
+        'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-retained', null, NOW - WEEK_MS, NOW);
+    database
+      .prepare(
+        'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-retained', 'user', 'Expired turn', NOW - WEEK_MS - 1);
+    database
+      .prepare(
+        'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
+      )
+      .run('session-retained', 'assistant', 'Fresh turn', NOW - 500);
+
+    assert.deepEqual(
+      repository.getTranscript('session-middle').map((message) => ({
+        role: message.role,
+        content: message.content,
+        createdAt: message.createdAt
+      })),
+      [
+        {
+          role: 'user',
+          content: 'First',
+          createdAt: NOW - 2_000
+        },
+        {
+          role: 'assistant',
+          content: 'Second',
+          createdAt: NOW - 1_500
+        },
+        {
+          role: 'user',
+          content: 'Third',
+          createdAt: NOW - 1_000
+        }
+      ]
+    );
+
+    assert.deepEqual(
+      repository.getTranscript('session-retained').map((message) => ({
+        role: message.role,
+        content: message.content,
+        createdAt: message.createdAt
+      })),
+      [
+        {
+          role: 'assistant',
+          content: 'Fresh turn',
+          createdAt: NOW - 500
+        }
+      ]
+    );
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -203,8 +333,8 @@ test('ChatSessionRepository prunes expired sessions and messages at the 1-week b
 
   try {
     database
-      .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
-      .run('session-fresh', 'Fresh Session', freshActivityAt);
+      .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+      .run('session-fresh', 'Fresh Session', freshActivityAt, freshActivityAt);
     database
       .prepare(
         'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
@@ -217,8 +347,8 @@ test('ChatSessionRepository prunes expired sessions and messages at the 1-week b
       .run('session-fresh', 'assistant', 'Recent message that should remain.', NOW);
 
     database
-      .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
-      .run('session-expired', 'Expired Session', expiredActivityAt);
+      .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+      .run('session-expired', 'Expired Session', expiredActivityAt, expiredActivityAt);
     database
       .prepare(
         'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'

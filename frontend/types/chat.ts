@@ -14,6 +14,22 @@ export interface ChatRequest {
   messages: ChatMessage[];
 }
 
+export interface ChatSessionSummary {
+  id: string;
+  name: string | null;
+  createdAt: number;
+  lastActivityAt: number;
+}
+
+export interface ChatSessionListResponse {
+  sessions: ChatSessionSummary[];
+}
+
+export interface ChatSessionDetailResponse {
+  session: ChatSessionSummary;
+  messages: ChatMessage[];
+}
+
 export interface ChatResponse {
   assistantMessage: ChatTurn;
   changedNoteIds: number[];
