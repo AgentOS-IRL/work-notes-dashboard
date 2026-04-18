@@ -73,6 +73,80 @@ test('initializeSqliteDatabase creates the chat session tables', () => {
   }
 });
 
+test('initializeSqliteDatabase migrates legacy chat tables with timestamp columns', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-migration-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL
+      );
+
+      CREATE TABLE chat_sessions (
+        id TEXT PRIMARY KEY,
+        name TEXT
+      );
+
+      CREATE TABLE chat_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sessionId TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+        content TEXT NOT NULL,
+        FOREIGN KEY (sessionId) REFERENCES chat_sessions(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO chat_sessions (id, name) VALUES ('session-legacy', 'Legacy Session');
+      INSERT INTO chat_messages (sessionId, role, content) VALUES (
+        'session-legacy',
+        'user',
+        'Legacy message'
+      );
+    `);
+
+    initializeSqliteDatabase(database);
+
+    const sessionColumns = database
+      .prepare('PRAGMA table_info(chat_sessions)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(sessionColumns.map((column) => column.name), [
+      'id',
+      'name',
+      'lastActivityAt'
+    ]);
+
+    const messageColumns = database
+      .prepare('PRAGMA table_info(chat_messages)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(messageColumns.map((column) => column.name), [
+      'id',
+      'sessionId',
+      'role',
+      'content',
+      'createdAt'
+    ]);
+
+    const repository = new ChatSessionRepository(database, { now: () => NOW });
+    const session = repository.getSessionById('session-legacy');
+    assert.ok(session);
+    assert.equal(session?.name, 'Legacy Session');
+    assert.equal(typeof session?.lastActivityAt, 'number');
+    assert.ok((session?.lastActivityAt ?? 0) > 0);
+
+    const messages = repository.getRecentMessages('session-legacy', 10);
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].content, 'Legacy message');
+    assert.equal(typeof messages[0].createdAt, 'number');
+    assert.ok(messages[0].createdAt > 0);
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('ChatSessionRepository creates sessions, stores messages, and renames sessions', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-repo-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
