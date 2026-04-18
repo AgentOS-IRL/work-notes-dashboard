@@ -27,8 +27,8 @@ onMounted(() => {
   void loadNotes();
 });
 
-function handleNotesChanged() {
-  void loadNotes();
+function handleNotesChanged(changedNoteIds: number[]) {
+  void loadNotes({ focusNoteIds: changedNoteIds });
 }
 
 function handleSelectNote(noteId: number) {
