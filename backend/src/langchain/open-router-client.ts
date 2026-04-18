@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { z } from 'zod';
 import type { ChatTurn } from './conversation';
 
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini';
@@ -34,16 +35,24 @@ function sanitizeSessionName(content: string) {
     .trim();
 }
 
+const SessionNameSchema = z.object({
+  name: z.string()
+});
+
 export async function generateSessionNameFromOpenRouter(messages: ChatTurn[]) {
   const client = createOpenRouterClient();
   const response = await client.chat.completions.create({
     model: DEFAULT_MODEL,
     temperature: 0.2,
+    response_format: { type: 'json_object' },
     messages: [
       {
         role: 'system',
-        content:
-          'You name chat sessions. Return a concise title of 2 to 5 words in Title Case. Do not use quotes, punctuation, or markdown.'
+        content: `You name chat sessions. Return a concise title of 2 to 5 words in Title Case. Do not use quotes, punctuation, or markdown.
+        Respond ONLY with valid JSON matching this schema:
+        {
+          "name": "string"
+        }`
       },
       {
         role: 'user',
@@ -53,9 +62,12 @@ export async function generateSessionNameFromOpenRouter(messages: ChatTurn[]) {
   });
 
   const rawContent = response.choices[0]?.message?.content;
-  if (typeof rawContent !== 'string' || rawContent.trim() === '') {
+  if (!rawContent || rawContent.trim() === '') {
     throw new Error('No session name was returned from OpenRouter.');
   }
 
-  return sanitizeSessionName(rawContent);
+  const parsedJson = JSON.parse(rawContent);
+  const validatedData = SessionNameSchema.parse(parsedJson);
+
+  return sanitizeSessionName(validatedData.name);
 }
