@@ -13,7 +13,7 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 }
 
 describe('ChatPanel', () => {
-  it('renders the assistant reply and notifies the page when notes change', async () => {
+  it('renders the terminal-style chat and notifies the page when notes change', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       jsonResponse({
         assistantMessage: {
@@ -32,9 +32,22 @@ describe('ChatPanel', () => {
     await wrapper.get('form.composer').trigger('submit');
     await flushPromises();
 
+    expect(wrapper.text()).toContain('Talk things out with the notes model.');
     expect(wrapper.text()).toContain('I updated the sprint plan note.');
     expect(wrapper.emitted('notes-changed')).toEqual([[[1]]]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('collapses the composer in explore mode', () => {
+    const wrapper = mount(ChatPanel, {
+      props: {
+        compact: true
+      }
+    });
+
+    expect(wrapper.text()).toContain('Chat collapsed for browsing.');
+    expect(wrapper.find('form.composer').exists()).toBe(false);
+    expect(wrapper.findAll('.prompt-chip')).toHaveLength(0);
   });
 
   it('shows an error when the backend request fails', async () => {

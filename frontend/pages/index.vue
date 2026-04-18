@@ -1,37 +1,85 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import ChatPanel from '~/components/chat/ChatPanel.vue';
 import NotesPanel from '~/components/notes/NotesPanel.vue';
+import NotesTree from '~/components/notes/NotesTree.vue';
+import { useNotes } from '~/composables/useNotes';
 
-const notesRefreshKey = ref(0);
+const workspaceMode = ref<'chat-first' | 'explore-notes'>('chat-first');
+
+const {
+  notes,
+  noteTree,
+  selectedNoteId,
+  selectedNote,
+  loading,
+  errorMessage,
+  loadNotes,
+  selectNoteById
+} = useNotes();
+
+const exploreLabel = computed(() =>
+  workspaceMode.value === 'chat-first' ? 'Explore notes' : 'Return to chat'
+);
+
+onMounted(() => {
+  void loadNotes();
+});
 
 function handleNotesChanged() {
-  notesRefreshKey.value += 1;
+  void loadNotes();
+}
+
+function handleSelectNote(noteId: number) {
+  selectNoteById(noteId);
+}
+
+function toggleWorkspaceMode() {
+  workspaceMode.value =
+    workspaceMode.value === 'chat-first' ? 'explore-notes' : 'chat-first';
 }
 </script>
 
 <template>
-  <main class="screen">
+  <main class="screen" :class="workspaceMode">
     <div class="backdrop" aria-hidden="true" />
+
     <section class="shell">
-      <header class="hero">
-        <div class="hero-copy">
+      <header class="workspace-bar">
+        <div class="copy">
           <p class="eyebrow">Work Notes Dashboard</p>
-          <h1>Split the conversation from the record.</h1>
+          <h1>Developer workspace for chat and notes.</h1>
           <p class="subtitle">
-            Keep chat on the left connected to LangChain Converse while the notes panel on the
-            right stays backed by the existing API.
+            Keep the conversation on the left, then switch to note exploration without losing the
+            selected document on the right.
           </p>
         </div>
-        <div class="hero-badges" aria-label="Workspace summary">
-          <span>Chat: LangChain Converse</span>
-          <span>Notes: backed by /api/notes</span>
+
+        <div class="toolbar" aria-label="Workspace controls">
+          <span class="meta-pill">{{ notes.length }} notes</span>
+          <span class="meta-pill">{{ workspaceMode === 'chat-first' ? 'Chat-first' : 'Explore' }}</span>
+          <button type="button" class="toggle-button" @click="toggleWorkspaceMode">
+            {{ exploreLabel }}
+          </button>
         </div>
       </header>
 
-      <div class="dashboard">
-        <ChatPanel @notes-changed="handleNotesChanged" />
-        <NotesPanel :refresh-key="notesRefreshKey" />
+      <div class="workspace">
+        <aside class="left-rail">
+          <ChatPanel
+            :compact="workspaceMode === 'explore-notes'"
+            @notes-changed="handleNotesChanged"
+          />
+
+          <NotesTree
+            v-if="workspaceMode === 'explore-notes'"
+            :nodes="noteTree"
+            :selected-note-id="selectedNoteId"
+            @select="handleSelectNote"
+          />
+        </aside>
+
+        <NotesPanel :note="selectedNote" :loading="loading" :error-message="errorMessage" />
       </div>
     </section>
   </main>
@@ -41,7 +89,7 @@ function handleNotesChanged() {
 .screen {
   position: relative;
   min-height: 100vh;
-  padding: 28px;
+  padding: 24px;
   overflow: hidden;
 }
 
@@ -49,98 +97,121 @@ function handleNotesChanged() {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 10% 10%, rgba(255, 177, 101, 0.2), transparent 32%),
-    radial-gradient(circle at 90% 16%, rgba(83, 114, 255, 0.22), transparent 28%),
-    radial-gradient(circle at 50% 100%, rgba(18, 28, 52, 0.08), transparent 24%),
+    radial-gradient(circle at 12% 12%, rgba(62, 140, 255, 0.18), transparent 26%),
+    radial-gradient(circle at 88% 14%, rgba(38, 208, 132, 0.12), transparent 28%),
+    radial-gradient(circle at 50% 96%, rgba(7, 10, 18, 0.94), transparent 30%),
     linear-gradient(180deg, var(--page-bg) 0%, var(--page-bg-alt) 100%);
 }
 
 .shell {
   position: relative;
   z-index: 1;
-  width: min(1440px, 100%);
+  width: min(1520px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: 22px;
+  gap: 18px;
 }
 
-.hero {
+.workspace-bar {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 20px;
-  padding: 4px 4px 0;
+  gap: 18px;
+  padding: 4px 2px 0;
 }
 
-.hero-copy {
+.copy {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .eyebrow {
   margin: 0;
   color: var(--muted-strong);
-  font-size: 0.78rem;
-  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
 }
 
 h1 {
   margin: 0;
-  max-width: 12ch;
-  font-size: clamp(2.6rem, 5vw, 5rem);
-  line-height: 0.95;
-  letter-spacing: -0.06em;
+  max-width: 16ch;
+  font-size: clamp(2.1rem, 4.2vw, 4.6rem);
+  line-height: 0.96;
+  letter-spacing: -0.07em;
 }
 
 .subtitle {
   margin: 0;
-  max-width: 60ch;
+  max-width: 68ch;
   color: var(--muted);
-  font-size: 1.02rem;
-  line-height: 1.7;
+  font-size: 1rem;
+  line-height: 1.65;
 }
 
-.hero-badges {
+.toolbar {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
 }
 
-.hero-badges span {
+.meta-pill {
   padding: 10px 14px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-strong) 80%, transparent);
+  background: color-mix(in srgb, var(--panel-muted) 92%, transparent);
   border: 1px solid var(--border);
   color: var(--text-strong);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
 }
 
-.dashboard {
+.toggle-button {
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border-radius: 999px;
+  padding: 11px 16px;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: white;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.toggle-button:hover,
+.toggle-button:focus-visible {
+  transform: translateY(-1px);
+}
+
+.workspace {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-  gap: 20px;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr);
+  gap: 18px;
   align-items: start;
 }
 
-@media (max-width: 1200px) {
-  .dashboard {
+.left-rail {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+}
+
+@media (max-width: 1240px) {
+  .workspace {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 960px) {
   .screen {
-    padding: 18px;
+    padding: 16px;
   }
 
-  .hero {
-    display: grid;
-    align-items: start;
+  .workspace-bar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .hero-badges {
+  .toolbar {
     justify-content: flex-start;
   }
 }

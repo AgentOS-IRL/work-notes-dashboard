@@ -35,6 +35,31 @@ describe('useNotes', () => {
     expect(notes.selectedNote.value?.id).toBe(1);
     expect(notes.title.value).toBe('Daily log');
     expect(notes.content.value).toBe('First entry');
+    expect(notes.noteTree.value).toEqual([
+      { id: 'note-1', label: 'Daily log', noteId: 1, children: [] },
+      { id: 'note-2', label: 'Follow-up', noteId: 2, children: [] }
+    ]);
+  });
+
+  it('selects a note by id for explorer navigation', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        notes: [
+          { id: 1, title: 'Daily log', content: 'First entry' },
+          { id: 2, title: 'Follow-up', content: 'Second entry' }
+        ]
+      })
+    );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const notes = useNotes();
+    await notes.loadNotes();
+
+    notes.selectNoteById(2);
+
+    expect(notes.selectedNoteId.value).toBe(2);
+    expect(notes.selectedNote.value?.title).toBe('Follow-up');
   });
 
   it('preserves a dirty editor when refreshes come from chat updates', async () => {

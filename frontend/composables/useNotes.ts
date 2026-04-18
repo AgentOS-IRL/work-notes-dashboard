@@ -1,6 +1,13 @@
 import { computed, ref } from 'vue';
 import type { Note, NoteInput, NoteResponse, NotesResponse } from '~/types/note';
 
+export interface NoteTreeNode {
+  id: string;
+  label: string;
+  noteId?: number;
+  children?: NoteTreeNode[];
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: {
@@ -32,6 +39,14 @@ export function useNotes() {
   const selectedNote = computed(
     () => notes.value.find((note) => note.id === selectedNoteId.value) ?? null
   );
+  const noteTree = computed<NoteTreeNode[]>(() =>
+    notes.value.map((note) => ({
+      id: `note-${note.id}`,
+      label: note.title,
+      noteId: note.id,
+      children: []
+    }))
+  );
   const isEditorDirty = computed(() => {
     if (selectedNoteSnapshot.value) {
       return (
@@ -55,6 +70,13 @@ export function useNotes() {
     title.value = note.title;
     content.value = note.content;
     selectedNoteSnapshot.value = note;
+  }
+
+  function selectNoteById(noteId: number) {
+    const note = notes.value.find((entry) => entry.id === noteId);
+    if (note) {
+      selectNote(note);
+    }
   }
 
   async function loadNotes(options: { preserveEditorFields?: boolean } = {}) {
@@ -137,6 +159,7 @@ export function useNotes() {
     notes,
     selectedNoteId,
     selectedNote,
+    noteTree,
     isEditorDirty,
     title,
     content,
@@ -146,6 +169,7 @@ export function useNotes() {
     statusMessage,
     resetForm,
     selectNote,
+    selectNoteById,
     loadNotes,
     saveNote,
     deleteNote
