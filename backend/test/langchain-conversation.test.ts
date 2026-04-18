@@ -132,6 +132,8 @@ test('conversation service uses note tools to inspect and update notes', async (
     assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
     assert.deepEqual(messageTypes(invocationMessages[2]), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
     assert.equal(response.notesChanged, true);
+    assert.deepEqual(response.createdNoteIds, []);
+    assert.deepEqual(response.updatedNoteIds, [1]);
     assert.deepEqual(response.changedNoteIds, [1]);
     assert.deepEqual(response.openedNoteIds, []);
     assert.deepEqual(response.assistantMessage, {
@@ -147,6 +149,94 @@ test('conversation service uses note tools to inspect and update notes', async (
         updated: ['session-abc']
       }
     });
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('conversation service tracks created and updated note ids separately', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-created-updated-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+  repository.createNote({
+    title: 'Sprint plan',
+    content: 'Draft the kickoff note.'
+  });
+
+  let invocationCount = 0;
+
+  const model = {
+    bindTools() {
+      return {
+        async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
+          invocationCount += 1;
+
+          if (invocationCount === 1) {
+            assert.deepEqual(messageTypes(messages), ['system', 'human']);
+
+            return new AIMessage({
+              content: 'I will create a note.',
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  name: 'create_note',
+                  args: {
+                    title: 'Weekly update',
+                    content: 'Draft the weekly update.'
+                  }
+                }
+              ]
+            });
+          }
+
+          if (invocationCount === 2) {
+            assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+            return new AIMessage({
+              content: 'I will also update the sprint plan.',
+              tool_calls: [
+                {
+                  id: 'call-2',
+                  name: 'update_note',
+                  args: {
+                    id: 1,
+                    title: 'Sprint plan refined',
+                    content: 'Add the latest decisions.'
+                  }
+                }
+              ]
+            });
+          }
+
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
+          return new AIMessage({
+            content: 'Created and updated notes.'
+          });
+        }
+      };
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+    const response = await service.replyToConversation({
+      sessionId: 'session-abc',
+      messages: [
+        {
+          role: 'user',
+          content: 'Create a weekly update and refine the sprint plan.'
+        }
+      ]
+    });
+
+    assert.deepEqual(response.createdNoteIds, [2]);
+    assert.deepEqual(response.updatedNoteIds, [1]);
+    assert.deepEqual(response.changedNoteIds, [2, 1]);
+    assert.equal(response.notesChanged, true);
+    assert.deepEqual(repository.getNoteById(1)?.title, 'Sprint plan refined');
+    assert.deepEqual(repository.getNoteById(2)?.title, 'Weekly update');
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -231,6 +321,8 @@ test('conversation service tracks get_note reads as opened notes', async () => {
     assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
     assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
     assert.equal(response.notesChanged, false);
+    assert.deepEqual(response.createdNoteIds, []);
+    assert.deepEqual(response.updatedNoteIds, []);
     assert.deepEqual(response.changedNoteIds, []);
     assert.deepEqual(response.openedNoteIds, [1]);
     assert.deepEqual(response.assistantMessage, {

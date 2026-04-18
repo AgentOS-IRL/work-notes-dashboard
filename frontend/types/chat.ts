@@ -19,6 +19,12 @@ export interface ChatSessionSummary {
   name: string | null;
   createdAt: number;
   lastActivityAt: number;
+  metadata: ChatSessionMetadata;
+}
+
+export interface ChatSessionMetadata {
+  created: number[];
+  updated: number[];
 }
 
 export interface ChatSessionListResponse {
@@ -32,6 +38,8 @@ export interface ChatSessionDetailResponse {
 
 export interface ChatResponse {
   assistantMessage: ChatTurn;
+  createdNoteIds: number[];
+  updatedNoteIds: number[];
   changedNoteIds: number[];
   openedNoteIds: number[];
   notesChanged: boolean;

@@ -18,6 +18,8 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   assistantMessage: ChatTurn;
+  createdNoteIds: number[];
+  updatedNoteIds: number[];
   changedNoteIds: number[];
   openedNoteIds: number[];
   notesChanged: boolean;
@@ -98,8 +100,16 @@ function stringifyToolResult(result: ToolResult) {
   return JSON.stringify(result);
 }
 
-function collectChangedNoteIds(toolName: string, result: ToolResult) {
-  if (toolName === 'create_note' || toolName === 'update_note') {
+function collectCreatedNoteIds(toolName: string, result: ToolResult) {
+  if (toolName === 'create_note') {
+    return result.note ? [result.note.id] : [];
+  }
+
+  return [];
+}
+
+function collectUpdatedNoteIds(toolName: string, result: ToolResult) {
+  if (toolName === 'update_note') {
     return result.note ? [result.note.id] : [];
   }
 
@@ -158,6 +168,8 @@ export function createConversationService(options: {
         tools.updateNoteTool
       ]);
       const baseMessages = [new SystemMessage(SYSTEM_INSTRUCTION), ...toBaseMessages(request.messages)];
+      const createdNoteIds = new Set<number>();
+      const updatedNoteIds = new Set<number>();
       const changedNoteIds = new Set<number>();
       const openedNoteIds = new Set<number>();
       let messages: BaseMessage[] = baseMessages;
@@ -178,9 +190,11 @@ export function createConversationService(options: {
               role: 'assistant',
               content: reply
             },
+            createdNoteIds: [...createdNoteIds],
+            updatedNoteIds: [...updatedNoteIds],
             changedNoteIds: [...changedNoteIds],
             openedNoteIds: [...openedNoteIds],
-            notesChanged: changedNoteIds.size > 0
+            notesChanged: createdNoteIds.size > 0 || updatedNoteIds.size > 0 || changedNoteIds.size > 0
           };
         }
 
@@ -200,8 +214,13 @@ export function createConversationService(options: {
 
           try {
             const result = (await invokeTool(toolName, toolCall.args, tools)) as ToolResult;
-            for (const changedNoteId of collectChangedNoteIds(toolName, result)) {
-              changedNoteIds.add(changedNoteId);
+            for (const createdNoteId of collectCreatedNoteIds(toolName, result)) {
+              createdNoteIds.add(createdNoteId);
+              changedNoteIds.add(createdNoteId);
+            }
+            for (const updatedNoteId of collectUpdatedNoteIds(toolName, result)) {
+              updatedNoteIds.add(updatedNoteId);
+              changedNoteIds.add(updatedNoteId);
             }
             for (const openedNoteId of collectOpenedNoteIds(toolName, result)) {
               openedNoteIds.add(openedNoteId);

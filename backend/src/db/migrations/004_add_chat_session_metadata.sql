@@ -1,0 +1,3 @@
+-- Handled in backend/src/db/migration-runner.ts so it can be applied safely
+-- when chat_sessions.metadata already exists but this migration has not been
+-- recorded yet.

@@ -20,13 +20,21 @@ describe('useChat', () => {
             id: 'session-1',
             name: 'Named session',
             createdAt: 1_700_000_000_000,
-            lastActivityAt: 1_700_000_000_000
+            lastActivityAt: 1_700_000_000_000,
+            metadata: {
+              created: [1],
+              updated: [1]
+            }
           },
           {
             id: 'session-2',
             name: null,
             createdAt: 1_700_000_100_000,
-            lastActivityAt: 1_700_000_100_000
+            lastActivityAt: 1_700_000_100_000,
+            metadata: {
+              created: [],
+              updated: []
+            }
           }
         ]
       })
@@ -66,7 +74,11 @@ describe('useChat', () => {
               id: 'session-1',
               name: 'Weekly update',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -77,7 +89,11 @@ describe('useChat', () => {
             id: 'session-1',
             name: 'Weekly update',
             createdAt: 1_700_000_000_000,
-            lastActivityAt: 1_700_000_000_000
+            lastActivityAt: 1_700_000_000_000,
+            metadata: {
+              created: [],
+              updated: [1]
+            }
           },
           messages: [
             {
@@ -100,7 +116,11 @@ describe('useChat', () => {
               id: 'session-1',
               name: 'Weekly update',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [1]
+              }
             }
           ]
         })
@@ -111,6 +131,8 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I refined the sprint plan.'
           },
+          createdNoteIds: [1],
+          updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [],
           notesChanged: true
@@ -123,7 +145,11 @@ describe('useChat', () => {
               id: 'session-1',
               name: 'Weekly update',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [1],
+                updated: [1]
+              }
             }
           ]
         })
@@ -178,6 +204,12 @@ describe('useChat', () => {
       role: 'assistant',
       content: 'I refined the sprint plan.'
     });
+    expect(chat.sessions.value[0]).toMatchObject({
+      metadata: {
+        created: [],
+        updated: [1]
+      }
+    });
     expect(notesChanged).toHaveBeenCalledWith([1]);
   });
 
@@ -193,6 +225,8 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I opened the sprint plan note.'
           },
+          createdNoteIds: [],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [7],
           notesChanged: false
@@ -228,6 +262,8 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'I updated and opened the sprint plan note.'
           },
+          createdNoteIds: [2],
+          updatedNoteIds: [2],
           changedNoteIds: [2],
           openedNoteIds: [7],
           notesChanged: true
@@ -269,6 +305,8 @@ describe('useChat', () => {
             role: 'assistant',
             content: 'Ready for the next prompt.'
           },
+          createdNoteIds: [],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [],
           notesChanged: false
@@ -319,7 +357,11 @@ describe('useChat', () => {
               id: 'session-1',
               name: 'Weekly update',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })

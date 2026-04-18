@@ -23,13 +23,21 @@ describe('ChatPanel', () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             },
             {
               id: 'session-2',
               name: null,
               createdAt: 1_700_000_100_000,
-              lastActivityAt: 1_700_000_100_000
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -40,6 +48,8 @@ describe('ChatPanel', () => {
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
+          createdNoteIds: [1],
+          updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [],
           notesChanged: true
@@ -52,13 +62,21 @@ describe('ChatPanel', () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [1]
+              }
             },
             {
               id: 'session-2',
               name: null,
               createdAt: 1_700_000_100_000,
-              lastActivityAt: 1_700_000_100_000
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -109,7 +127,11 @@ describe('ChatPanel', () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -120,6 +142,8 @@ describe('ChatPanel', () => {
             role: 'assistant',
             content: 'I opened the sprint plan note.'
           },
+          createdNoteIds: [],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [4],
           notesChanged: false
@@ -132,7 +156,11 @@ describe('ChatPanel', () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -167,7 +195,11 @@ describe('ChatPanel', () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -178,6 +210,8 @@ describe('ChatPanel', () => {
             role: 'assistant',
             content: 'I updated and opened the sprint plan note.'
           },
+          createdNoteIds: [1],
+          updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [4],
           notesChanged: true
@@ -190,7 +224,11 @@ describe('ChatPanel', () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -225,13 +263,21 @@ describe('ChatPanel', () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             },
             {
               id: 'session-2',
               name: null,
               createdAt: 1_700_000_100_000,
-              lastActivityAt: 1_700_000_100_000
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -242,7 +288,11 @@ describe('ChatPanel', () => {
             id: 'session-2',
             name: null,
             createdAt: 1_700_000_100_000,
-            lastActivityAt: 1_700_000_100_000
+            lastActivityAt: 1_700_000_100_000,
+            metadata: {
+              created: [],
+              updated: []
+            }
           },
           messages: [
             {
@@ -265,13 +315,21 @@ describe('ChatPanel', () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: 1_700_000_000_000,
-              lastActivityAt: 1_700_000_000_000
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             },
             {
               id: 'session-2',
               name: null,
               createdAt: 1_700_000_100_000,
-              lastActivityAt: 1_700_000_100_000
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: []
+              }
             }
           ]
         })
@@ -301,6 +359,8 @@ describe('ChatPanel', () => {
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
+          createdNoteIds: [],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [],
           notesChanged: false

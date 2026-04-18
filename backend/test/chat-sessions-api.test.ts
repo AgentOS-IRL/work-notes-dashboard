@@ -31,11 +31,11 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
   const database = openSqliteDatabase(databasePath);
   initializeSqliteDatabase(database);
   database
-    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
-    .run('session-1', 'Named session', NOW - 2_000, NOW - 1_000);
+    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, ?, ?, ?, ?)')
+    .run('session-1', 'Named session', NOW - 2_000, NOW - 1_000, '{"created":[1],"updated":[1,2]}');
   database
-    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
-    .run('session-2', null, NOW - 4_000, NOW - 2_000);
+    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, ?, ?, ?, ?)')
+    .run('session-2', null, NOW - 4_000, NOW - 2_000, '{"created":[],"updated":[3]}');
   database
     .prepare('INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)')
     .run('session-2', 'user', 'Draft a note.', NOW - 4_000);
@@ -64,13 +64,21 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
               id: 'session-1',
               name: 'Named session',
               createdAt: NOW - 2_000,
-              lastActivityAt: NOW - 1_000
+              lastActivityAt: NOW - 1_000,
+              metadata: {
+                created: [1],
+                updated: [1, 2]
+              }
             },
             {
               id: 'session-2',
               name: null,
               createdAt: NOW - 4_000,
-              lastActivityAt: NOW - 2_000
+              lastActivityAt: NOW - 2_000,
+              metadata: {
+                created: [],
+                updated: [3]
+              }
             }
           ]
         });
@@ -85,7 +93,11 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
             id: 'session-2',
             name: null,
             createdAt: NOW - 4_000,
-            lastActivityAt: NOW - 2_000
+            lastActivityAt: NOW - 2_000,
+            metadata: {
+              created: [],
+              updated: [3]
+            }
           },
           messages: [
             {

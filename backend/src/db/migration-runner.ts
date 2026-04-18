@@ -47,6 +47,16 @@ function ensureColumn(database: SqliteDatabase, tableName: string, columnName: s
   }
 }
 
+function backfillChatSessionMetadata(database: SqliteDatabase) {
+  if (!hasColumns(database, 'chat_sessions', ['metadata'])) {
+    return;
+  }
+
+  database
+    .prepare("UPDATE chat_sessions SET metadata = '{}' WHERE metadata IS NULL OR trim(metadata) = ''")
+    .run();
+}
+
 function listMigrationFiles() {
   if (!fs.existsSync(MIGRATION_DIRECTORY)) {
     return [];
@@ -74,6 +84,23 @@ export function runMigrations(database: SqliteDatabase) {
   const executeMigration = database.transaction((fileName: string, sql: string) => {
     const timestamp = Date.now();
     database.exec(sql);
+    insertMigration.run(fileName, timestamp);
+  });
+
+  const applyChatSessionMetadataMigration = database.transaction((fileName: string) => {
+    const timestamp = Date.now();
+
+    ensureColumn(
+      database,
+      'chat_sessions',
+      'metadata',
+      `
+        ALTER TABLE chat_sessions
+        ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}';
+      `
+    );
+
+    backfillChatSessionMetadata(database);
     insertMigration.run(fileName, timestamp);
   });
 
@@ -132,6 +159,12 @@ export function runMigrations(database: SqliteDatabase) {
 
     if (fileName === '002_add_timestamps.sql') {
       applyTimestampMigration(fileName);
+      console.log(`Applied migration: ${fileName}`);
+      continue;
+    }
+
+    if (fileName === '004_add_chat_session_metadata.sql') {
+      applyChatSessionMetadataMigration(fileName);
       console.log(`Applied migration: ${fileName}`);
       continue;
     }
