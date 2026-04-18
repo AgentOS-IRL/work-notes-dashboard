@@ -59,97 +59,17 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
 
     const listed = await tools.listNotesTool.invoke({});
     assert.deepEqual(listed, {
-      notes: [
-        {
-          id: 1,
-          title: 'Sprint plan',
-          content: 'Initial body',
-          metadata: {
-            created: 'session-abc',
-            updated: ['session-abc']
-          }
-        },
-        {
-          id: 2,
-          title: 'Note 2',
-          content: 'Body 2',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 3,
-          title: 'Note 3',
-          content: 'Body 3',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 4,
-          title: 'Note 4',
-          content: 'Body 4',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 5,
-          title: 'Note 5',
-          content: 'Body 5',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 6,
-          title: 'Note 6',
-          content: 'Body 6',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 7,
-          title: 'Note 7',
-          content: 'Body 7',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 8,
-          title: 'Note 8',
-          content: 'Body 8',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 9,
-          title: 'Note 9',
-          content: 'Body 9',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 10,
-          title: 'Note 10',
-          content: 'Body 10',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        }
+      titles: [
+        'Sprint plan',
+        'Note 2',
+        'Note 3',
+        'Note 4',
+        'Note 5',
+        'Note 6',
+        'Note 7',
+        'Note 8',
+        'Note 9',
+        'Note 10'
       ]
     });
 
@@ -158,35 +78,7 @@ test('LangChain note tools create, get, open, list, and update notes', async () 
       offset: 8
     });
     assert.deepEqual(paged, {
-      notes: [
-        {
-          id: 9,
-          title: 'Note 9',
-          content: 'Body 9',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 10,
-          title: 'Note 10',
-          content: 'Body 10',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        },
-        {
-          id: 11,
-          title: 'Note 11',
-          content: 'Body 11',
-          metadata: {
-            created: '',
-            updated: []
-          }
-        }
-      ]
+      titles: ['Note 9', 'Note 10', 'Note 11']
     });
 
     const updated = await tools.updateNoteTool.invoke({
@@ -247,7 +139,7 @@ test('listNotesTool returns an empty list for an empty repository', async () => 
     const listed = await tools.listNotesTool.invoke({});
 
     assert.deepEqual(listed, {
-      notes: []
+      titles: []
     });
   } finally {
     database.close();
