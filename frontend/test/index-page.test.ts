@@ -14,37 +14,56 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 
 describe('index page', () => {
   it('renders the workspace shell, explores notes, deletes a note, and refreshes after chat updates', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          notes: [
-            { id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' },
-            { id: 2, title: 'Retro', content: '# Retro\n\nRemember the blocker.' }
-          ]
-        })
-      )
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          notes: [{ id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' }]
-        })
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
+    let notesListCount = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const method = init?.method ?? 'GET';
+
+      if (url.endsWith('/api/chat/sessions') && method === 'GET') {
+        return jsonResponse({
+          sessions: []
+        });
+      }
+
+      if (url.endsWith('/api/notes') && method === 'GET') {
+        notesListCount += 1;
+        if (notesListCount === 1) {
+          return jsonResponse({
+            notes: [
+              { id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' },
+              { id: 2, title: 'Retro', content: '# Retro\n\nRemember the blocker.' }
+            ]
+          });
+        }
+
+        if (notesListCount === 2) {
+          return jsonResponse({
+            notes: [{ id: 1, title: 'Sprint plan', content: '# Sprint plan\n\n- Outline milestones' }]
+          });
+        }
+
+        return jsonResponse({
+          notes: [{ id: 1, title: 'Sprint plan refined', content: '# Sprint plan\n\n- Outline milestones' }]
+        });
+      }
+
+      if (url.includes('/api/notes/') && method === 'DELETE') {
+        return new Response(null, { status: 204 });
+      }
+
+      if (url.endsWith('/api/chat') && method === 'POST') {
+        return jsonResponse({
           assistantMessage: {
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
           changedNoteIds: [1],
           notesChanged: true
-        })
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          notes: [{ id: 1, title: 'Sprint plan refined', content: '# Sprint plan\n\n- Outline milestones' }]
-        })
-      );
+        });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
 
     vi.stubGlobal('fetch', fetchMock);
     vi.stubGlobal('confirm', vi.fn(() => true));
@@ -92,6 +111,6 @@ describe('index page', () => {
     await flushPromises();
 
     expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
   });
 });

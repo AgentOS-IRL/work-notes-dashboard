@@ -132,16 +132,16 @@ test('chat session service prunes expired rows before replying and refreshes ses
   const staleActivityAt = NOW - 10_000;
 
   database
-    .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
-    .run('session-expired', 'Expired Session', expiredAt);
+    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+    .run('session-expired', 'Expired Session', expiredAt, expiredAt);
   database
     .prepare(
       'INSERT INTO chat_messages (sessionId, role, content, createdAt) VALUES (?, ?, ?, ?)'
     )
     .run('session-expired', 'user', 'Expired turn.', expiredAt);
   database
-    .prepare('INSERT INTO chat_sessions (id, name, lastActivityAt) VALUES (?, ?, ?)')
-    .run('session-active', null, staleActivityAt);
+    .prepare('INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, ?, ?, ?)')
+    .run('session-active', null, staleActivityAt, staleActivityAt);
 
   const service = createChatSessionService({
     repository,

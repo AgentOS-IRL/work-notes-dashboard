@@ -7,6 +7,7 @@ const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export interface ChatSession {
   id: string;
   name: string | null;
+  createdAt: number;
   lastActivityAt: number;
 }
 
@@ -53,6 +54,7 @@ function toChatSession(row: unknown): ChatSession {
   return {
     id: session.id,
     name: session.name ?? null,
+    createdAt: session.createdAt,
     lastActivityAt: session.lastActivityAt
   };
 }
@@ -97,7 +99,7 @@ export class ChatSessionRepository {
   getSessionById(sessionId: string): ChatSession | null {
     const normalizedSessionId = assertSessionId(sessionId);
     const session = this.database
-      .prepare('SELECT id, name, lastActivityAt FROM chat_sessions WHERE id = ?')
+      .prepare('SELECT id, name, createdAt, lastActivityAt FROM chat_sessions WHERE id = ?')
       .get(normalizedSessionId);
 
     if (!session) {
@@ -114,9 +116,12 @@ export class ChatSessionRepository {
 
   createOrEnsureSession(sessionId: string): ChatSession {
     const normalizedSessionId = assertSessionId(sessionId);
+    const timestamp = this.now();
     this.database
-      .prepare('INSERT OR IGNORE INTO chat_sessions (id, name, lastActivityAt) VALUES (?, NULL, ?)')
-      .run(normalizedSessionId, this.now());
+      .prepare(
+        'INSERT OR IGNORE INTO chat_sessions (id, name, createdAt, lastActivityAt) VALUES (?, NULL, ?, ?)'
+      )
+      .run(normalizedSessionId, timestamp, timestamp);
 
     return this.requireSession(normalizedSessionId);
   }
@@ -180,6 +185,27 @@ export class ChatSessionRepository {
     return Number(result?.count ?? 0);
   }
 
+  listRecentSessions(limit = 20): ChatSession[] {
+    if (!Number.isInteger(limit) || limit <= 0) {
+      throw new ValidationError('A valid session limit is required.');
+    }
+
+    const cutoff = this.now() - this.retentionMs;
+    const rows = this.database
+      .prepare(
+        `
+          SELECT id, name, createdAt, lastActivityAt
+          FROM chat_sessions
+          WHERE lastActivityAt >= ?
+          ORDER BY lastActivityAt DESC, createdAt DESC, id DESC
+          LIMIT ?
+        `
+      )
+      .all(cutoff, limit) as ChatSession[];
+
+    return rows.map((row) => toChatSession(row));
+  }
+
   getRecentMessages(sessionId: string, limit = 10): ChatMessage[] {
     const normalizedSessionId = assertSessionId(sessionId);
     this.requireSession(normalizedSessionId);
@@ -203,6 +229,24 @@ export class ChatSessionRepository {
       .all(normalizedSessionId, cutoff, limit) as ChatMessage[];
 
     return rows.reverse().map((row) => toChatMessage(row));
+  }
+
+  getTranscript(sessionId: string): ChatMessage[] {
+    const normalizedSessionId = assertSessionId(sessionId);
+    this.requireSession(normalizedSessionId);
+
+    const rows = this.database
+      .prepare(
+        `
+          SELECT id, sessionId, role, content, createdAt
+          FROM chat_messages
+          WHERE sessionId = ?
+          ORDER BY createdAt ASC, id ASC
+        `
+      )
+      .all(normalizedSessionId) as ChatMessage[];
+
+    return rows.map((row) => toChatMessage(row));
   }
 
   updateSessionName(sessionId: string, name: string): ChatSession {

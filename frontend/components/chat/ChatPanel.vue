@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { useChat } from '~/composables/useChat';
 
 const props = withDefaults(
@@ -16,12 +17,17 @@ const emit = defineEmits<{
 
 const {
   messages,
+  sessions,
   sessionId,
+  selectedSessionId,
   draft,
   isSending,
+  isLoadingSession,
   errorMessage,
   hasMessages,
   addSuggestion,
+  loadSession,
+  loadSessions,
   sendMessage,
   resetChat
 } = useChat({
@@ -38,6 +44,18 @@ function handleComposerKeydown(event: KeyboardEvent) {
   event.preventDefault();
   void sendMessage();
 }
+
+function handleSessionChange() {
+  if (!selectedSessionId.value) {
+    return;
+  }
+
+  void loadSession(selectedSessionId.value);
+}
+
+onMounted(() => {
+  void loadSessions();
+});
 </script>
 
 <template>
@@ -58,7 +76,25 @@ function handleComposerKeydown(event: KeyboardEvent) {
       <div class="header-status" aria-label="Chat status">
         <span class="status-token">~/notes</span>
         <span class="status-pill">{{ hasMessages ? 'session active' : 'ready' }}</span>
-        <button type="button" class="clear-button" :disabled="isSending" @click="resetChat">
+        <label class="session-picker">
+          <span class="picker-label">Load session</span>
+          <select
+            v-model="selectedSessionId"
+            :disabled="isSending || isLoadingSession || sessions.length === 0"
+            @change="handleSessionChange"
+          >
+            <option value="">Select a session</option>
+            <option v-for="session in sessions" :key="session.id" :value="session.id">
+              {{ session.label }}
+            </option>
+          </select>
+        </label>
+        <button
+          type="button"
+          class="clear-button"
+          :disabled="isSending || isLoadingSession"
+          @click="resetChat"
+        >
           Clear
         </button>
       </div>
@@ -212,6 +248,29 @@ h2 {
   justify-content: flex-end;
   gap: 8px;
   margin-left: auto;
+}
+
+.session-picker {
+  display: inline-grid;
+  gap: 4px;
+}
+
+.picker-label {
+  color: var(--muted-strong);
+  font: 600 0.64rem/1 var(--mono-font);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.session-picker select {
+  min-width: 220px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-muted) 88%, transparent);
+  color: var(--text-strong);
+  font: 600 0.75rem/1 var(--mono-font);
 }
 
 .status-token,
