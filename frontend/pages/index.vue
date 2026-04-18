@@ -31,8 +31,10 @@ function handleNotesActivity(activity: {
   changedNoteIds: number[];
   openedNoteIds: number[];
 }) {
+  const focusNoteIds = [...new Set([...activity.changedNoteIds, ...activity.openedNoteIds])];
+
   void loadNotes({
-    focusNoteIds: [...activity.changedNoteIds, ...activity.openedNoteIds]
+    focusNoteIds
   });
 }
 

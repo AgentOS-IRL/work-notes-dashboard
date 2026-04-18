@@ -12,8 +12,6 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  (event: 'notes-changed', changedNoteIds: number[]): void;
-  (event: 'note-opened', openedNoteIds: number[]): void;
   (
     event: 'notes-activity',
     activity: {

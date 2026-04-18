@@ -252,6 +252,105 @@ test('conversation service tracks get_note reads as opened notes', async () => {
   }
 });
 
+test('conversation service tracks open_note reads as opened notes', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-open-note-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+  repository.createNote({
+    title: 'Sprint plan',
+    content: 'Draft the kickoff note.'
+  });
+
+  const invocationMessages: Array<Array<{ getType(): string; content?: unknown }>> = [];
+  let invocationCount = 0;
+
+  const model = {
+    bindTools() {
+      return {
+        async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
+          invocationCount += 1;
+          invocationMessages.push(messages);
+
+          if (invocationCount === 1) {
+            assert.deepEqual(messageTypes(messages), ['system', 'human']);
+
+            return new AIMessage({
+              content: 'I will open the note.',
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  name: 'open_note',
+                  args: {
+                    id: 1
+                  }
+                }
+              ]
+            });
+          }
+
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+          assert.equal(
+            String(messages[3].content),
+            JSON.stringify({
+              note: {
+                id: 1,
+                title: 'Sprint plan',
+                content: 'Draft the kickoff note.',
+                metadata: {
+                  created: '',
+                  updated: []
+                }
+              }
+            })
+          );
+
+          return new AIMessage({
+            content: 'Opened the note for context.'
+          });
+        }
+      };
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+    const response = await service.replyToConversation({
+      sessionId: 'session-open-note',
+      messages: [
+        {
+          role: 'user',
+          content: 'Open the sprint plan.'
+        }
+      ]
+    });
+
+    assert.equal(invocationCount, 2);
+    assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
+    assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
+    assert.equal(response.notesChanged, false);
+    assert.deepEqual(response.changedNoteIds, []);
+    assert.deepEqual(response.openedNoteIds, [1]);
+    assert.deepEqual(response.assistantMessage, {
+      role: 'assistant',
+      content: 'Opened the note for context.'
+    });
+    assert.deepEqual(repository.getNoteById(1), {
+      id: 1,
+      title: 'Sprint plan',
+      content: 'Draft the kickoff note.',
+      metadata: {
+        created: '',
+        updated: []
+      }
+    });
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('conversation service rejects an empty assistant response before returning', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-empty-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');

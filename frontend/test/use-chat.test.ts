@@ -56,7 +56,7 @@ describe('useChat', () => {
   });
 
   it('restores a loaded session transcript and continues sending from it', async () => {
-    const notesChanged = vi.fn();
+    const noteActivity = vi.fn();
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -132,7 +132,7 @@ describe('useChat', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const chat = useChat({
-      onNotesChanged: notesChanged
+      onNotesActivity: noteActivity
     });
 
     await chat.loadSessions();
@@ -178,12 +178,14 @@ describe('useChat', () => {
       role: 'assistant',
       content: 'I refined the sprint plan.'
     });
-    expect(notesChanged).toHaveBeenCalledWith([1]);
+    expect(noteActivity).toHaveBeenCalledWith({
+      changedNoteIds: [1],
+      openedNoteIds: []
+    });
   });
 
-  it('surfaces opened note ids separately from note changes', async () => {
-    const noteOpened = vi.fn();
-    const notesChanged = vi.fn();
+  it('surfaces opened note ids through note activity', async () => {
+    const noteActivity = vi.fn();
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ sessions: [] }))
@@ -203,22 +205,21 @@ describe('useChat', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const chat = useChat({
-      onNotesChanged: notesChanged,
-      onNoteOpened: noteOpened
+      onNotesActivity: noteActivity
     });
 
     await chat.loadSessions();
     chat.draft.value = 'Open the sprint plan note.';
     await chat.sendMessage();
 
-    expect(noteOpened).toHaveBeenCalledWith([7]);
-    expect(notesChanged).not.toHaveBeenCalled();
+    expect(noteActivity).toHaveBeenCalledWith({
+      changedNoteIds: [],
+      openedNoteIds: [7]
+    });
   });
 
   it('surfaces note activity once when a response changes and opens notes', async () => {
     const noteActivity = vi.fn();
-    const notesChanged = vi.fn();
-    const noteOpened = vi.fn();
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ sessions: [] }))
@@ -238,9 +239,7 @@ describe('useChat', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const chat = useChat({
-      onNotesActivity: noteActivity,
-      onNotesChanged: notesChanged,
-      onNoteOpened: noteOpened
+      onNotesActivity: noteActivity
     });
 
     await chat.loadSessions();
@@ -251,8 +250,6 @@ describe('useChat', () => {
       changedNoteIds: [2],
       openedNoteIds: [7]
     });
-    expect(notesChanged).not.toHaveBeenCalled();
-    expect(noteOpened).not.toHaveBeenCalled();
   });
 
   it('resets the transcript and session id when cleared', async () => {
