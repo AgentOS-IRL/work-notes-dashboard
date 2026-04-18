@@ -107,7 +107,7 @@ function collectChangedNoteIds(toolName: string, result: ToolResult) {
 }
 
 function collectOpenedNoteIds(toolName: string, result: ToolResult) {
-  if (toolName === 'open_note') {
+  if (toolName === 'get_note' || toolName === 'open_note') {
     return result.note ? [result.note.id] : [];
   }
 

@@ -88,7 +88,14 @@ describe('ChatPanel', () => {
     expect(wrapper.findAll('.message')).toHaveLength(2);
     expect(wrapper.find('.message.user').text()).toContain('Refine the sprint plan.');
     expect(wrapper.find('.message.assistant').text()).toContain('I updated the sprint plan note.');
-    expect(wrapper.emitted('notes-changed')).toEqual([[[1]]]);
+    expect(wrapper.emitted('notes-activity')).toEqual([
+      [
+        {
+          changedNoteIds: [1],
+          openedNoteIds: []
+        }
+      ]
+    ]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
@@ -140,8 +147,72 @@ describe('ChatPanel', () => {
     await wrapper.get('form.composer').trigger('submit');
     await flushPromises();
 
-    expect(wrapper.emitted('note-opened')).toEqual([[[4]]]);
-    expect(wrapper.emitted('notes-changed')).toBeUndefined();
+    expect(wrapper.emitted('notes-activity')).toEqual([
+      [
+        {
+          changedNoteIds: [],
+          openedNoteIds: [4]
+        }
+      ]
+    ]);
+  });
+
+  it('surfaces changed and opened note ids together as a single activity event', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Named session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I updated and opened the sprint plan note.'
+          },
+          changedNoteIds: [1],
+          openedNoteIds: [4],
+          notesChanged: true
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Named session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000
+            }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const wrapper = mount(ChatPanel);
+    await flushPromises();
+
+    await wrapper.get('#chat-draft').setValue('Update and open the sprint plan note.');
+    await wrapper.get('form.composer').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.emitted('notes-activity')).toEqual([
+      [
+        {
+          changedNoteIds: [1],
+          openedNoteIds: [4]
+        }
+      ]
+    ]);
   });
 
   it('loads a persisted session and replaces the visible transcript', async () => {

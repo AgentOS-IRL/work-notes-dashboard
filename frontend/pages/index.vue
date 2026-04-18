@@ -27,12 +27,13 @@ onMounted(() => {
   void loadNotes();
 });
 
-function handleNotesChanged(changedNoteIds: number[]) {
-  void loadNotes({ focusNoteIds: changedNoteIds });
-}
-
-function handleNoteOpened(openedNoteIds: number[]) {
-  void loadNotes({ focusNoteIds: openedNoteIds });
+function handleNotesActivity(activity: {
+  changedNoteIds: number[];
+  openedNoteIds: number[];
+}) {
+  void loadNotes({
+    focusNoteIds: [...activity.changedNoteIds, ...activity.openedNoteIds]
+  });
 }
 
 function handleSelectNote(noteId: number) {
@@ -76,8 +77,7 @@ function toggleWorkspaceMode() {
         <aside class="left-rail">
           <ChatPanel
             v-show="workspaceMode === 'chat-first'"
-            @notes-changed="handleNotesChanged"
-            @note-opened="handleNoteOpened"
+            @notes-activity="handleNotesActivity"
           />
 
           <NotesTree

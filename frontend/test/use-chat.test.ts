@@ -215,6 +215,46 @@ describe('useChat', () => {
     expect(notesChanged).not.toHaveBeenCalled();
   });
 
+  it('surfaces note activity once when a response changes and opens notes', async () => {
+    const noteActivity = vi.fn();
+    const notesChanged = vi.fn();
+    const noteOpened = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ sessions: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I updated and opened the sprint plan note.'
+          },
+          changedNoteIds: [2],
+          openedNoteIds: [7],
+          notesChanged: true
+        })
+      )
+      .mockResolvedValueOnce(jsonResponse({ sessions: [] }));
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat({
+      onNotesActivity: noteActivity,
+      onNotesChanged: notesChanged,
+      onNoteOpened: noteOpened
+    });
+
+    await chat.loadSessions();
+    chat.draft.value = 'Update and open the sprint plan note.';
+    await chat.sendMessage();
+
+    expect(noteActivity).toHaveBeenCalledWith({
+      changedNoteIds: [2],
+      openedNoteIds: [7]
+    });
+    expect(notesChanged).not.toHaveBeenCalled();
+    expect(noteOpened).not.toHaveBeenCalled();
+  });
+
   it('resets the transcript and session id when cleared', async () => {
     const fetchMock = vi
       .fn()

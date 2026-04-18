@@ -153,7 +153,7 @@ test('conversation service uses note tools to inspect and update notes', async (
   }
 });
 
-test('conversation service tracks opened notes separately from note changes', async () => {
+test('conversation service tracks get_note reads as opened notes', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-open-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -182,7 +182,7 @@ test('conversation service tracks opened notes separately from note changes', as
               tool_calls: [
                 {
                   id: 'call-1',
-                  name: 'open_note',
+                  name: 'get_note',
                   args: {
                     id: 1
                   }

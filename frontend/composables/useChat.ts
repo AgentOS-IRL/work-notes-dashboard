@@ -51,6 +51,10 @@ export function formatChatSessionLabel(session: Pick<ChatSessionSummary, 'name' 
 export function useChat(options: {
   onNotesChanged?: (changedNoteIds: number[]) => void;
   onNoteOpened?: (openedNoteIds: number[]) => void;
+  onNotesActivity?: (activity: {
+    changedNoteIds: number[];
+    openedNoteIds: number[];
+  }) => void;
 } = {}) {
   const messages = ref<ChatMessage[]>([]);
   const sessions = ref<ChatSessionSummary[]>([]);
@@ -192,12 +196,21 @@ export function useChat(options: {
 
       messages.value = [...nextMessages, assistantMessage];
 
-      if (response.notesChanged) {
-        options.onNotesChanged?.(response.changedNoteIds);
-      }
+      if (response.changedNoteIds.length > 0 || response.openedNoteIds.length > 0) {
+        if (options.onNotesActivity) {
+          options.onNotesActivity({
+            changedNoteIds: response.changedNoteIds,
+            openedNoteIds: response.openedNoteIds
+          });
+        } else {
+          if (response.notesChanged) {
+            options.onNotesChanged?.(response.changedNoteIds);
+          }
 
-      if (response.openedNoteIds.length > 0) {
-        options.onNoteOpened?.(response.openedNoteIds);
+          if (response.openedNoteIds.length > 0) {
+            options.onNoteOpened?.(response.openedNoteIds);
+          }
+        }
       }
 
       void refreshSessions();
