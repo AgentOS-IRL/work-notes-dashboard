@@ -102,10 +102,6 @@ export function useChat(options: {
     }
   }
 
-  function addSuggestion(text: string) {
-    draft.value = text;
-  }
-
   function resetChat() {
     if (isSending.value || isLoadingSession.value) {
       return;
@@ -236,7 +232,6 @@ export function useChat(options: {
     isLoadingSession,
     errorMessage,
     hasMessages,
-    addSuggestion,
     loadSession,
     loadSessions: refreshSessions,
     sendMessage,

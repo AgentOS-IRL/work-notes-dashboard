@@ -96,7 +96,8 @@ describe('ChatPanel', () => {
     expect(wrapper.findAll('option')).toHaveLength(3);
     expect(wrapper.findAll('option')[1].text()).toBe('Named session');
     expect(wrapper.findAll('option')[2].text()).toMatch(/:/);
-    expect(wrapper.findAll('.prompt-chip')).toHaveLength(3);
+    expect(wrapper.find('.prompt-row').exists()).toBe(false);
+    expect(wrapper.findAll('.prompt-chip')).toHaveLength(0);
     expect(wrapper.find('form.composer').exists()).toBe(true);
 
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
@@ -497,7 +498,7 @@ describe('ChatPanel', () => {
     expect((wrapper.get('#chat-draft').element as HTMLTextAreaElement).value).toBe('Line one');
   });
 
-  it('collapses the prompt line in compact mode', async () => {
+  it('collapses the composer in compact mode', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ sessions: [] })));
 
     const wrapper = mount(ChatPanel, {
@@ -509,6 +510,7 @@ describe('ChatPanel', () => {
 
     expect(wrapper.find('.collapsed-copy').text()).toBe('Chat collapsed for browsing.');
     expect(wrapper.find('form.composer').exists()).toBe(false);
+    expect(wrapper.find('.prompt-row').exists()).toBe(false);
     expect(wrapper.findAll('.prompt-chip')).toHaveLength(0);
     expect(wrapper.classes()).toContain('compact');
   });
