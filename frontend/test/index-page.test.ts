@@ -21,7 +21,36 @@ describe('index page', () => {
 
       if (url.endsWith('/api/chat/sessions') && method === 'GET') {
         return jsonResponse({
-          sessions: []
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Locked note session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: 1
+              }
+            }
+          ]
+        });
+      }
+
+      if (url.endsWith('/api/chat/sessions/session-1') && method === 'GET') {
+        return jsonResponse({
+          session: {
+            id: 'session-1',
+            name: 'Locked note session',
+            createdAt: 1_700_000_000_000,
+            lastActivityAt: 1_700_000_000_000,
+            metadata: {
+              created: [],
+              updated: [],
+              lockedNoteId: 1
+            }
+          },
+          messages: []
         });
       }
 
@@ -82,6 +111,18 @@ describe('index page', () => {
       }
 
       if (url.endsWith('/api/chat') && method === 'POST') {
+        const requestBody = JSON.parse(init?.body as string) as {
+          sessionId: string;
+          messages: Array<{ role: string; content: string; toolCalls: unknown[] }>;
+        };
+
+        expect(requestBody.messages[0]).toMatchObject({
+          role: 'user',
+          content:
+            'Please update, reformat, and organize the note with the new information.\n\nRefine the sprint plan.',
+          toolCalls: []
+        });
+
         return jsonResponse({
           assistantMessage: {
             role: 'assistant',
@@ -128,6 +169,11 @@ describe('index page', () => {
     expect(wrapper.find('.notes-tree').exists()).toBe(true);
     expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode off');
 
+    await wrapper.get('select').setValue('session-1');
+    await flushPromises();
+
+    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
+
     const noteButtons = wrapper.findAll('.tree-item');
     await noteButtons[1].trigger('click');
     await flushPromises();
@@ -161,7 +207,7 @@ describe('index page', () => {
     expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
     expect(wrapper.find('.note-meta h3').text()).toBe('Weekly update');
     expect(wrapper.find('.markdown-body h1').text()).toBe('Weekly update');
-    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(fetchMock).toHaveBeenCalledTimes(9);
   });
 
   it('opens a note in the notes panel when chat requests it', async () => {
