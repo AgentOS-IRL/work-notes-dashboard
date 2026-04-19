@@ -80,6 +80,7 @@ export function useChat(options: {
   const sessionId = ref(createSessionId());
   const selectedSessionId = ref('');
   const activeSessionMetadata = ref<ChatSessionMetadata>(createEmptySessionMetadata());
+  const activeSessionSource = ref<'local' | 'loaded'>('local');
   let nextMessageId = 1;
 
   const hasMessages = computed(() => messages.value.length > 0);
@@ -112,7 +113,12 @@ export function useChat(options: {
 
     sessions.value = data.sessions;
     const currentSession = data.sessions.find((session) => session.id === sessionId.value);
-    updateActiveSessionMetadata(currentSession?.metadata ?? null);
+    if (currentSession) {
+      activeSessionSource.value = 'loaded';
+      updateActiveSessionMetadata(currentSession.metadata);
+    } else if (activeSessionSource.value === 'loaded') {
+      updateActiveSessionMetadata(null);
+    }
     syncSelectedSessionId();
   }
 
@@ -131,6 +137,7 @@ export function useChat(options: {
 
     sessionId.value = createSessionId();
     selectedSessionId.value = '';
+    activeSessionSource.value = 'local';
     messages.value = [];
     draft.value = '';
     errorMessage.value = '';
@@ -150,6 +157,7 @@ export function useChat(options: {
 
     const previousSessionId = sessionId.value;
     const previousSelectedSessionId = selectedSessionId.value;
+    const previousSessionSource = activeSessionSource.value;
     isLoadingSession.value = true;
     errorMessage.value = '';
 
@@ -163,6 +171,7 @@ export function useChat(options: {
 
       sessionId.value = response.session.id;
       selectedSessionId.value = response.session.id;
+      activeSessionSource.value = 'loaded';
       updateActiveSessionMetadata(response.session.metadata);
       messages.value = response.messages;
       draft.value = '';
@@ -171,6 +180,7 @@ export function useChat(options: {
     } catch (error) {
       sessionId.value = previousSessionId;
       selectedSessionId.value = previousSelectedSessionId;
+      activeSessionSource.value = previousSessionSource;
       syncSelectedSessionId();
       errorMessage.value = error instanceof Error ? error.message : 'Failed to load session.';
     } finally {

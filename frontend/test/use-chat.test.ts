@@ -514,6 +514,7 @@ describe('useChat', () => {
       changedNoteIds: [],
       openedNoteIds: []
     });
+    expect(chat.isNoteDumpLocked.value).toBe(true);
   });
 
   it('resets the transcript and session id when cleared', async () => {
