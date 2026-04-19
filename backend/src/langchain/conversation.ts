@@ -54,7 +54,7 @@ const NOTE_TOOL_NAMES = new Set([
   'update_note'
 ]);
 
-const SYSTEM_INSTRUCTION = [
+const UNLOCKED_SYSTEM_INSTRUCTION = [
   'You are a work notes assistant inside a split-view dashboard.',
   'Your job is to improve the notes collection as the conversation continues.',
   'Use the available tools to inspect existing notes before creating duplicates.',
@@ -64,6 +64,18 @@ const SYSTEM_INSTRUCTION = [
   'When the user asks for a note draft, summary, refinement, or follow-up, turn that into a note change when appropriate.',
   'After changing a note, briefly tell the user what you changed.'
 ].join(' ');
+
+const LOCKED_SYSTEM_INSTRUCTION = [
+  'You are a work notes assistant inside a split-view dashboard.',
+  'The conversation is locked to a single note, so treat that note as the only editable target.',
+  'You may only use update_note.',
+  'Do not inspect, create, open, or switch to other notes.',
+  'After each user message, update the locked note directly if a change is needed, then briefly tell the user what you changed.'
+].join(' ');
+
+function buildSystemInstruction(lockedNoteId: number | null) {
+  return lockedNoteId == null ? UNLOCKED_SYSTEM_INSTRUCTION : LOCKED_SYSTEM_INSTRUCTION;
+}
 
 function toBaseMessages(messages: ChatTurn[]): BaseMessage[] {
   return messages.map((message) =>
@@ -184,7 +196,7 @@ export function createConversationService(options: {
       }, {
         lockedNoteId
       });
-      const baseMessages = [new SystemMessage(SYSTEM_INSTRUCTION), ...toBaseMessages(request.messages)];
+      const baseMessages = [new SystemMessage(buildSystemInstruction(lockedNoteId)), ...toBaseMessages(request.messages)];
       const createdNoteIds = new Set<number>();
       const updatedNoteIds = new Set<number>();
       const changedNoteIds = new Set<number>();
