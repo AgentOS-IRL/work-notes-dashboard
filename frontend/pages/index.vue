@@ -4,6 +4,7 @@ import ChatPanel from '~/components/chat/ChatPanel.vue';
 import NotesPanel from '~/components/notes/NotesPanel.vue';
 import NotesTree from '~/components/notes/NotesTree.vue';
 import { useNotes } from '~/composables/useNotes';
+import type { ChatNotesActivity } from '~/types/chat';
 
 const workspaceMode = ref<'chat-first' | 'explore-notes'>('chat-first');
 
@@ -27,12 +28,9 @@ onMounted(() => {
   void loadNotes();
 });
 
-function handleNotesActivity(activity: {
-  changedNoteIds: number[];
-  openedNoteIds: number[];
-}) {
+function handleNotesActivity(activity: ChatNotesActivity) {
   void loadNotes({
-    focusNoteIds: [...activity.changedNoteIds, ...activity.openedNoteIds]
+    focusNoteIds: [...activity.createdNoteIds, ...activity.changedNoteIds, ...activity.openedNoteIds]
   });
 }
 

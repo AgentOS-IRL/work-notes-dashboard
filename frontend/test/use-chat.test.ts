@@ -335,11 +335,50 @@ describe('useChat', () => {
     await chat.sendMessage();
 
     expect(noteActivity).toHaveBeenCalledWith({
+      createdNoteIds: [2],
       changedNoteIds: [2],
       openedNoteIds: [7]
     });
     expect(notesChanged).not.toHaveBeenCalled();
     expect(noteOpened).not.toHaveBeenCalled();
+  });
+
+  it('surfaces created note ids even when the response only creates a note', async () => {
+    const noteActivity = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ sessions: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I created the weekly update note.'
+          },
+          toolCalls: [],
+          createdNoteIds: [9],
+          updatedNoteIds: [9],
+          changedNoteIds: [],
+          openedNoteIds: [],
+          notesChanged: true
+        })
+      )
+      .mockResolvedValueOnce(jsonResponse({ sessions: [] }));
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat({
+      onNotesActivity: noteActivity
+    });
+
+    await chat.loadSessions();
+    chat.draft.value = 'Create a weekly update note.';
+    await chat.sendMessage();
+
+    expect(noteActivity).toHaveBeenCalledWith({
+      createdNoteIds: [9],
+      changedNoteIds: [],
+      openedNoteIds: []
+    });
   });
 
   it('resets the transcript and session id when cleared', async () => {

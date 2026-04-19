@@ -56,3 +56,9 @@ export interface ChatResponse {
   openedNoteIds: number[];
   notesChanged: boolean;
 }
+
+export interface ChatNotesActivity {
+  createdNoteIds: number[];
+  changedNoteIds: number[];
+  openedNoteIds: number[];
+}
