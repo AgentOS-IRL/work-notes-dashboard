@@ -91,6 +91,7 @@ describe('ChatPanel', () => {
     expect(wrapper.find('header.panel-header').exists()).toBe(true);
     expect(wrapper.find('.status-token').text()).toBe('~/notes');
     expect(wrapper.find('.status-pill').text()).toBe('ready');
+    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('false');
     expect(wrapper.get('button.clear-button').text()).toBe('Clear');
     expect(wrapper.get('select').exists()).toBe(true);
     expect(wrapper.findAll('option')).toHaveLength(3);
@@ -100,11 +101,17 @@ describe('ChatPanel', () => {
     expect(wrapper.findAll('.prompt-chip')).toHaveLength(0);
     expect(wrapper.find('form.composer').exists()).toBe(true);
 
+    await wrapper.get('button.note-dump-button').trigger('click');
+    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('true');
+    await wrapper.get('button.note-dump-button').trigger('click');
+    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('false');
+
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('#chat-draft').trigger('keydown', { key: 'Enter' });
     await flushPromises();
 
     expect(wrapper.find('.status-pill').text()).toBe('session active');
+    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('true');
     expect(wrapper.findAll('.message')).toHaveLength(2);
     expect(wrapper.find('.message.user').text()).toContain('Refine the sprint plan.');
     expect(wrapper.find('.message.assistant').text()).toContain('I updated the sprint plan note.');
@@ -112,6 +119,7 @@ describe('ChatPanel', () => {
     expect(wrapper.emitted('notes-activity')).toEqual([
       [
         {
+          createdNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: []
         }
@@ -257,6 +265,7 @@ describe('ChatPanel', () => {
     expect(wrapper.emitted('notes-activity')).toEqual([
       [
         {
+          createdNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [4]
         }
@@ -325,6 +334,7 @@ describe('ChatPanel', () => {
     expect(wrapper.emitted('notes-activity')).toEqual([
       [
         {
+          createdNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [4]
         }

@@ -126,6 +126,7 @@ describe('index page', () => {
 
     expect(wrapper.text()).toContain('Chat');
     expect(wrapper.find('.notes-tree').exists()).toBe(true);
+    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('false');
 
     const noteButtons = wrapper.findAll('.tree-item');
     await noteButtons[1].trigger('click');
@@ -152,6 +153,7 @@ describe('index page', () => {
     expect(wrapper.text()).toContain('I created a new weekly update note.');
     expect(wrapper.text()).toContain('createNote');
     expect(wrapper.text()).toContain('Weekly update');
+    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('true');
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
