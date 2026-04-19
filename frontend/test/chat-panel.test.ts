@@ -104,8 +104,6 @@ describe('ChatPanel', () => {
     expect(wrapper.find('.prompt-row').exists()).toBe(false);
     expect(wrapper.findAll('.prompt-chip')).toHaveLength(0);
     expect(wrapper.find('form.composer').exists()).toBe(true);
-    expect(wrapper.get('.note-dump-indicator').attributes('aria-pressed')).toBe('false');
-
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('#chat-draft').trigger('keydown', { key: 'Enter' });
     await flushPromises();
@@ -512,7 +510,6 @@ describe('ChatPanel', () => {
     expect(wrapper.get('.tool-call-list').text()).toContain('createNote');
     expect(wrapper.vm.sessionId).toBe('session-2');
     expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
-    expect(wrapper.get('.note-dump-indicator').attributes('aria-pressed')).toBe('true');
 
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('form.composer').trigger('submit');

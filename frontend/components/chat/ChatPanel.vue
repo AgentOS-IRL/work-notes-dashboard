@@ -86,16 +86,14 @@ onMounted(() => {
       <div class="header-status" aria-label="Chat status">
         <span class="status-token">~/notes</span>
         <span class="status-pill">{{ hasMessages ? 'session active' : 'ready' }}</span>
-        <button
-          type="button"
+        <span
           class="note-dump-indicator"
           :class="{ active: isNoteDumpLocked }"
-          :aria-pressed="isNoteDumpLocked"
-          :aria-label="isNoteDumpLocked ? 'Note dump mode on' : 'Note dump mode off'"
+          role="status"
           aria-live="polite"
         >
           {{ isNoteDumpLocked ? 'note dump mode on' : 'note dump mode off' }}
-        </button>
+        </span>
         <label class="session-picker">
           <span class="picker-label">Load session</span>
           <select
@@ -324,11 +322,6 @@ h2 {
   border-color: color-mix(in srgb, var(--accent) 68%, var(--border));
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent-strong) 84%, #000), var(--accent));
   color: white;
-}
-
-.note-dump-indicator:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 62%, white);
-  outline-offset: 2px;
 }
 
 .clear-button {
