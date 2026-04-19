@@ -129,6 +129,8 @@ test('conversation service uses note tools to inspect and update notes', async (
     });
 
     assert.deepEqual(bindToolsCalls, [
+      ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note'],
+      ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note'],
       ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note']
     ]);
     assert.equal(invocationMessages.length, 3);
@@ -163,6 +165,7 @@ test('conversation service uses note tools to inspect and update notes', async (
         }
       }
     ]);
+    assert.equal(response.lockedNoteId, undefined);
     assert.deepEqual(repository.getNoteById(1), {
       id: 1,
       title: 'Sprint plan',
@@ -189,10 +192,13 @@ test('conversation service tracks created and updated note ids separately', asyn
     content: 'Draft the kickoff note.'
   });
 
+  const bindToolsCalls: string[][] = [];
   let invocationCount = 0;
 
   const model = {
-    bindTools() {
+    bindTools(tools: Array<{ name?: string }>) {
+      bindToolsCalls.push(tools.map((tool) => tool.name ?? ''));
+
       return {
         async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
           invocationCount += 1;
@@ -255,11 +261,98 @@ test('conversation service tracks created and updated note ids separately', asyn
     });
 
     assert.deepEqual(response.createdNoteIds, [2]);
-    assert.deepEqual(response.updatedNoteIds, [1]);
-    assert.deepEqual(response.changedNoteIds, [2, 1]);
+    assert.deepEqual(response.updatedNoteIds, [2]);
+    assert.deepEqual(response.changedNoteIds, [2]);
+    assert.deepEqual(response.lockedNoteId, 2);
     assert.equal(response.notesChanged, true);
-    assert.deepEqual(repository.getNoteById(1)?.title, 'Sprint plan refined');
-    assert.deepEqual(repository.getNoteById(2)?.title, 'Weekly update');
+    assert.deepEqual(bindToolsCalls, [
+      ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note'],
+      ['update_note'],
+      ['update_note']
+    ]);
+    assert.deepEqual(repository.getNoteById(1)?.title, 'Sprint plan');
+    assert.deepEqual(repository.getNoteById(2)?.title, 'Sprint plan refined');
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('conversation service starts in locked mode when the session is already locked', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-locked-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+  repository.createNote({
+    title: 'Locked note',
+    content: 'Draft content.'
+  });
+  repository.createNote({
+    title: 'Other note',
+    content: 'Other content.'
+  });
+
+  const bindToolsCalls: string[][] = [];
+  const invocationMessages: Array<Array<{ getType(): string; content?: unknown }>> = [];
+  let invocationCount = 0;
+
+  const model = {
+    bindTools(tools: Array<{ name?: string }>) {
+      bindToolsCalls.push(tools.map((tool) => tool.name ?? ''));
+
+      return {
+        async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
+          invocationMessages.push(messages);
+          invocationCount += 1;
+
+          if (invocationCount === 1) {
+            assert.deepEqual(messageTypes(messages), ['system', 'human']);
+
+            return new AIMessage({
+              content: 'I will update the locked note.',
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  name: 'update_note',
+                  args: {
+                    id: 2,
+                    title: 'Locked note refined',
+                    content: 'Refined content.'
+                  }
+                }
+              ]
+            });
+          }
+
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+          return new AIMessage({
+            content: 'Updated the locked note.'
+          });
+        }
+      };
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+    const response = await service.replyToConversation({
+      sessionId: 'session-locked',
+      lockedNoteId: 1,
+      messages: [
+        {
+          role: 'user',
+          content: 'Refine the locked note.'
+        }
+      ]
+    });
+
+    assert.deepEqual(bindToolsCalls, [['update_note'], ['update_note']]);
+    assert.equal(invocationMessages.length, 2);
+    assert.deepEqual(response.lockedNoteId, 1);
+    assert.deepEqual(response.updatedNoteIds, [1]);
+    assert.deepEqual(repository.getNoteById(1)?.title, 'Locked note refined');
+    assert.deepEqual(repository.getNoteById(2)?.title, 'Other note');
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });

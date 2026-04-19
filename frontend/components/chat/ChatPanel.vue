@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { onMounted } from 'vue';
 import ToolCallList from '~/components/chat/ToolCallList.vue';
 import { useChat } from '~/composables/useChat';
 import type { ChatNotesActivity } from '~/types/chat';
@@ -19,8 +19,6 @@ const emit = defineEmits<{
   (event: 'notes-activity', activity: ChatNotesActivity): void;
 }>();
 
-const noteDumpMode = ref(false);
-
 const {
   messages,
   sessions,
@@ -31,23 +29,16 @@ const {
   isLoadingSession,
   errorMessage,
   hasMessages,
+  isNoteDumpLocked,
   loadSession,
   loadSessions,
   sendMessage,
   resetChat
 } = useChat({
   onNotesActivity(activity) {
-    if (activity.createdNoteIds.length > 0 && !noteDumpMode.value) {
-      noteDumpMode.value = true;
-    }
-
     emit('notes-activity', activity);
   }
 });
-
-function toggleNoteDumpMode() {
-  noteDumpMode.value = !noteDumpMode.value;
-}
 
 function handleComposerKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
@@ -89,15 +80,13 @@ onMounted(() => {
       <div class="header-status" aria-label="Chat status">
         <span class="status-token">~/notes</span>
         <span class="status-pill">{{ hasMessages ? 'session active' : 'ready' }}</span>
-        <button
-          type="button"
-          class="note-dump-button"
-          :class="{ active: noteDumpMode }"
-          :aria-pressed="noteDumpMode"
-          @click="toggleNoteDumpMode"
+        <span
+          class="note-dump-indicator"
+          :class="{ active: isNoteDumpLocked }"
+          aria-live="polite"
         >
-          note dump mode
-        </button>
+          {{ isNoteDumpLocked ? 'note dump mode on' : 'note dump mode off' }}
+        </span>
         <label class="session-picker">
           <span class="picker-label">Load session</span>
           <select
@@ -303,7 +292,7 @@ h2 {
   color: var(--accent);
 }
 
-.note-dump-button {
+.note-dump-indicator {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
@@ -315,23 +304,13 @@ h2 {
   font: 600 0.75rem/1 var(--mono-font);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  cursor: pointer;
   transition:
-    transform 160ms ease,
     border-color 160ms ease,
     background-color 160ms ease,
-    color 160ms ease,
-    box-shadow 160ms ease;
+    color 160ms ease;
 }
 
-.note-dump-button:hover,
-.note-dump-button:focus-visible {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--accent) 64%, var(--border));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent);
-}
-
-.note-dump-button.active {
+.note-dump-indicator.active {
   border-color: color-mix(in srgb, var(--accent) 68%, var(--border));
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent-strong) 84%, #000), var(--accent));
   color: white;

@@ -23,7 +23,8 @@ describe('useChat', () => {
             lastActivityAt: 1_700_000_000_000,
             metadata: {
               created: [1],
-              updated: [1]
+              updated: [1],
+              lockedNoteId: null
             }
           },
           {
@@ -33,7 +34,8 @@ describe('useChat', () => {
             lastActivityAt: 1_700_000_100_000,
             metadata: {
               created: [],
-              updated: []
+              updated: [],
+              lockedNoteId: null
             }
           }
         ]
@@ -77,7 +79,8 @@ describe('useChat', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: 1
               }
             }
           ]
@@ -92,7 +95,8 @@ describe('useChat', () => {
             lastActivityAt: 1_700_000_000_000,
             metadata: {
               created: [],
-              updated: [1]
+              updated: [1],
+              lockedNoteId: 1
             }
           },
           messages: [
@@ -130,7 +134,8 @@ describe('useChat', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [],
-                updated: [1]
+                updated: [1],
+                lockedNoteId: 1
               }
             }
           ]
@@ -157,6 +162,7 @@ describe('useChat', () => {
           updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [],
+          lockedNoteId: 1,
           notesChanged: true
         })
       )
@@ -170,7 +176,8 @@ describe('useChat', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [1],
-                updated: [1]
+                updated: [1],
+                lockedNoteId: 1
               }
             }
           ]
@@ -188,6 +195,7 @@ describe('useChat', () => {
 
     expect(chat.sessionId.value).toBe('session-1');
     expect(chat.selectedSessionId.value).toBe('session-1');
+    expect(chat.isNoteDumpLocked.value).toBe(true);
     expect(chat.messages.value).toHaveLength(2);
     expect(chat.draft.value).toBe('');
 
@@ -256,9 +264,11 @@ describe('useChat', () => {
     expect(chat.sessions.value[0]).toMatchObject({
       metadata: {
         created: [],
-        updated: [1]
+        updated: [1],
+        lockedNoteId: 1
       }
     });
+    expect(chat.isNoteDumpLocked.value).toBe(true);
     expect(notesChanged).toHaveBeenCalledWith([1]);
   });
 

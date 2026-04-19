@@ -15,6 +15,7 @@ export interface ChatTurn {
 export interface ChatRequest {
   sessionId: string;
   messages: ChatTurn[];
+  lockedNoteId?: number | null;
 }
 
 export interface ChatResponse {
@@ -24,6 +25,7 @@ export interface ChatResponse {
   updatedNoteIds: number[];
   changedNoteIds: number[];
   openedNoteIds: number[];
+  lockedNoteId?: number | null;
   notesChanged: boolean;
 }
 
@@ -176,16 +178,12 @@ export function createConversationService(options: {
 
   return {
     async replyToConversation(request: ChatRequest): Promise<ChatResponse> {
-      const tools = createNoteTools(options.repository, {
+      let lockedNoteId = request.lockedNoteId ?? null;
+      let tools = createNoteTools(options.repository, {
         sessionId: request.sessionId
+      }, {
+        lockedNoteId
       });
-      const modelWithTools = model.bindTools([
-        tools.createNoteTool,
-        tools.readNoteTool,
-        tools.openNoteTool,
-        tools.listNotesTool,
-        tools.updateNoteTool
-      ]);
       const baseMessages = [new SystemMessage(SYSTEM_INSTRUCTION), ...toBaseMessages(request.messages)];
       const createdNoteIds = new Set<number>();
       const updatedNoteIds = new Set<number>();
@@ -196,6 +194,17 @@ export function createConversationService(options: {
       let allowEmptyReplyForOpenNote = false;
 
       for (let loopIndex = 0; loopIndex < MAX_TOOL_LOOPS; loopIndex += 1) {
+        const modelWithTools = model.bindTools(
+          lockedNoteId
+            ? [tools.updateNoteTool]
+            : [
+                tools.createNoteTool,
+                tools.readNoteTool,
+                tools.openNoteTool,
+                tools.listNotesTool,
+                tools.updateNoteTool
+              ]
+        );
         const assistantReply = await modelWithTools.invoke(messages);
         messages = [...messages, assistantReply];
 
@@ -218,6 +227,9 @@ export function createConversationService(options: {
                 changedNoteIds: [...changedNoteIds],
                 openedNoteIds: [...openedNoteIds],
                 notesChanged: createdNoteIds.size > 0 || updatedNoteIds.size > 0 || changedNoteIds.size > 0
+                  ? true
+                  : false,
+                ...(lockedNoteId == null ? {} : { lockedNoteId })
               };
             }
 
@@ -242,11 +254,26 @@ export function createConversationService(options: {
             changedNoteIds: [...changedNoteIds],
             openedNoteIds: [...openedNoteIds],
             notesChanged: createdNoteIds.size > 0 || updatedNoteIds.size > 0 || changedNoteIds.size > 0
+              ? true
+              : false,
+            ...(lockedNoteId == null ? {} : { lockedNoteId })
           };
         }
 
         for (const toolCall of assistantToolCalls) {
           const toolName = toolCall.name;
+          if (lockedNoteId && toolName !== 'update_note') {
+            messages = [
+              ...messages,
+              new ToolMessage(
+                'Tool access is locked to update_note after a note has been created in this session.',
+                toolCall.id ?? `${toolName}-${loopIndex}`,
+                toolName
+              )
+            ];
+            continue;
+          }
+
           if (!isNoteToolName(toolName)) {
             messages = [
               ...messages,
@@ -264,6 +291,12 @@ export function createConversationService(options: {
             for (const createdNoteId of collectCreatedNoteIds(toolName, result)) {
               createdNoteIds.add(createdNoteId);
               changedNoteIds.add(createdNoteId);
+              lockedNoteId = createdNoteId;
+              tools = createNoteTools(options.repository, {
+                sessionId: request.sessionId
+              }, {
+                lockedNoteId
+              });
             }
             for (const updatedNoteId of collectUpdatedNoteIds(toolName, result)) {
               updatedNoteIds.add(updatedNoteId);

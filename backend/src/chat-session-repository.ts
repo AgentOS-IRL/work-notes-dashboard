@@ -24,6 +24,7 @@ export interface ChatSessionSummary {
 export interface ChatSessionMetadata {
   created: number[];
   updated: number[];
+  lockedNoteId: number | null;
 }
 
 export interface ChatMessage {
@@ -95,7 +96,8 @@ function toChatSessionSummary(row: unknown): ChatSessionSummary {
 function createEmptyChatSessionMetadata(): ChatSessionMetadata {
   return {
     created: [],
-    updated: []
+    updated: [],
+    lockedNoteId: null
   };
 }
 
@@ -126,6 +128,17 @@ function normalizeSessionIdList(value: unknown) {
   return normalized;
 }
 
+function normalizeLockedNoteId(value: unknown) {
+  const numericValue =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number(value.trim())
+        : Number.NaN;
+
+  return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : null;
+}
+
 function normalizeChatSessionMetadata(rawMetadata: unknown): ChatSessionMetadata {
   const parsedMetadata =
     typeof rawMetadata === 'string'
@@ -149,11 +162,13 @@ function normalizeChatSessionMetadata(rawMetadata: unknown): ChatSessionMetadata
   const metadata = parsedMetadata as Partial<ChatSessionMetadata> & {
     created?: unknown;
     updated?: unknown;
+    lockedNoteId?: unknown;
   };
 
   return {
     created: normalizeSessionIdList(metadata.created),
-    updated: normalizeSessionIdList(metadata.updated)
+    updated: normalizeSessionIdList(metadata.updated),
+    lockedNoteId: normalizeLockedNoteId(metadata.lockedNoteId)
   };
 }
 
@@ -218,6 +233,7 @@ function mergeChatSessionMetadata(
   const current = currentMetadata ?? createEmptyChatSessionMetadata();
   const nextCreated = normalizeSessionIdList(nextMetadata.created);
   const nextUpdated = normalizeSessionIdList(nextMetadata.updated);
+  const nextLockedNoteId = normalizeLockedNoteId(nextMetadata.lockedNoteId);
 
   const created = [...current.created];
   for (const noteId of nextCreated) {
@@ -235,7 +251,8 @@ function mergeChatSessionMetadata(
 
   return {
     created,
-    updated
+    updated,
+    lockedNoteId: nextLockedNoteId ?? current.lockedNoteId
   };
 }
 

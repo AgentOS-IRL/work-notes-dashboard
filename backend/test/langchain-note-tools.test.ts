@@ -218,6 +218,43 @@ test('listNotesTool returns an empty list for an empty repository', async () => 
   }
 });
 
+test('locked update_note ignores caller ids and updates the captured note', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-locked-update-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+
+  try {
+    const lockedNote = repository.createNote({
+      title: 'Locked note',
+      content: 'Original locked body'
+    });
+    const otherNote = repository.createNote({
+      title: 'Other note',
+      content: 'Original other body'
+    });
+    const tools = createNoteTools(repository, { sessionId: 'session-locked' }, { lockedNoteId: lockedNote.id });
+
+    const updated = await tools.updateNoteTool.invoke({
+      id: otherNote.id,
+      title: 'Locked note updated',
+      content: 'Updated locked body'
+    });
+
+    assert.equal(updated.note.id, lockedNote.id);
+    assert.deepEqual(updated.note.metadata, {
+      created: '',
+      updated: ['session-locked']
+    });
+    assert.equal(repository.getNoteById(lockedNote.id)?.title, 'Locked note updated');
+    assert.equal(repository.getNoteById(otherNote.id)?.title, 'Other note');
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('createNoteTool rejects blank titles before repository access', async () => {
   let createCalls = 0;
   const tools = createNoteTools({

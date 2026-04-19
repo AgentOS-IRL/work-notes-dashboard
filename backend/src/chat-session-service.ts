@@ -38,9 +38,11 @@ export function createChatSessionService(options: {
         // Retention cleanup is best-effort and must not block the chat reply.
       }
 
+      const existingSession = options.repository.getSessionById(request.sessionId);
       const response = await options.conversationService.replyToConversation({
         sessionId: request.sessionId,
-        messages: request.messages
+        messages: request.messages,
+        lockedNoteId: existingSession?.metadata.lockedNoteId ?? null
       });
 
       const persistedTurn = options.repository.recordConversationTurn(
@@ -52,7 +54,9 @@ export function createChatSessionService(options: {
 
       const session = options.repository.updateSessionMetadata(persistedTurn.session.id, {
         created: response.createdNoteIds,
-        updated: response.updatedNoteIds
+        updated: response.updatedNoteIds,
+        lockedNoteId:
+          response.lockedNoteId ?? response.createdNoteIds[0] ?? existingSession?.metadata.lockedNoteId ?? null
       });
 
       const userTurnCount = options.repository.countUserTurns(session.id);

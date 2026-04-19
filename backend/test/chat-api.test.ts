@@ -78,6 +78,7 @@ test('chat API returns assistant replies and note change metadata', async () => 
           updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [],
+          lockedNoteId: 1,
           notesChanged: true
         };
       }
@@ -124,6 +125,7 @@ test('chat API returns assistant replies and note change metadata', async () => 
           updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [],
+          lockedNoteId: 1,
           notesChanged: true
         });
       });
@@ -137,7 +139,8 @@ test('chat API returns assistant replies and note change metadata', async () => 
       lastActivityAt: NOW,
       metadata: {
         created: [1],
-        updated: [1]
+        updated: [1],
+        lockedNoteId: 1
       },
       toolCalls: []
     });
