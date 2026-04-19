@@ -14,6 +14,11 @@ function messageTypes(messages: Array<{ getType(): string }>) {
   return messages.map((message) => message.getType());
 }
 
+function systemMessageContent(messages: Array<{ getType(): string; content?: unknown }>) {
+  const systemMessage = messages.find((message) => message.getType() === 'system');
+  return typeof systemMessage?.content === 'string' ? systemMessage.content : '';
+}
+
 test('conversation service uses note tools to inspect and update notes', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
@@ -134,6 +139,11 @@ test('conversation service uses note tools to inspect and update notes', async (
       ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note']
     ]);
     assert.equal(invocationMessages.length, 3);
+    assert.match(
+      systemMessageContent(invocationMessages[0]),
+      /You are a work notes assistant inside a split-view dashboard\./
+    );
+    assert.doesNotMatch(systemMessageContent(invocationMessages[0]), /may only use update_note/i);
     assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
     assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
     assert.deepEqual(messageTypes(invocationMessages[2]), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
@@ -222,6 +232,11 @@ test('conversation service tracks created and updated note ids separately', asyn
           }
 
           if (invocationCount === 2) {
+            assert.match(
+              systemMessageContent(messages),
+              /The conversation is locked to a single note, so treat that note as the only editable target\./
+            );
+            assert.match(systemMessageContent(messages), /You may only use update_note\./);
             assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
             return new AIMessage({
               content: 'I will also update the sprint plan.',
@@ -239,6 +254,11 @@ test('conversation service tracks created and updated note ids separately', asyn
             });
           }
 
+          assert.match(
+            systemMessageContent(messages),
+            /The conversation is locked to a single note, so treat that note as the only editable target\./
+          );
+          assert.match(systemMessageContent(messages), /You may only use update_note\./);
           assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
           return new AIMessage({
             content: 'Created and updated notes.'
@@ -349,6 +369,14 @@ test('conversation service starts in locked mode when the session is already loc
 
     assert.deepEqual(bindToolsCalls, [['update_note'], ['update_note']]);
     assert.equal(invocationMessages.length, 2);
+    assert.match(
+      systemMessageContent(invocationMessages[0]),
+      /The conversation is locked to a single note, so treat that note as the only editable target\./
+    );
+    assert.match(systemMessageContent(invocationMessages[0]), /You may only use update_note\./);
+    assert.match(systemMessageContent(invocationMessages[0]), /After each user message, update the locked note directly/i);
+    assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
+    assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
     assert.deepEqual(response.lockedNoteId, 1);
     assert.deepEqual(response.updatedNoteIds, [1]);
     assert.deepEqual(repository.getNoteById(1)?.title, 'Locked note refined');
