@@ -88,17 +88,23 @@ export function createNoteTools(repository: NoteToolRepository, context: NoteToo
 
   const listNotesTool = tool(
     async ({ limit, offset }) => {
+      const page = repository.listNotesPage(limit + 1, offset);
+      const hasMore = page.length > limit;
+      const notes = page.slice(0, limit).map((note) => ({
+        id: note.id,
+        title: note.title
+      }));
+
       return {
-        notes: repository.listNotesPage(limit, offset).map((note) => ({
-          id: note.id,
-          title: note.title
-        }))
+        notes,
+        hasMore,
+        nextOffset: hasMore ? offset + limit : null
       };
     },
     {
       name: 'list_notes',
       description:
-        'List note ids and titles from the SQLite-backed notes store. Returns ids and titles only, not note content or metadata. Defaults to 10 notes and accepts offset-based paging for later pages.',
+        'List note ids and titles from the SQLite-backed notes store for discovery. Returns ids and titles only, plus explicit paging state (`hasMore` and `nextOffset`) so callers can tell when they reached the last page. Defaults to 10 notes and accepts offset-based paging for later pages.',
       schema: z.object({
         limit: z.number().int().positive().default(10).describe('The number of notes to return.'),
         offset: z.number().int().min(0).default(0).describe('The zero-based note offset for paging notes.')

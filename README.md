@@ -86,9 +86,11 @@ The backend exposes LangChain tools that wrap the existing SQLite repository:
 
 - `create_note` creates a note with `{ "title": "...", "content": "..." }`
 - `list_notes` is discovery-only: it lists note ids and titles for selecting candidates to inspect or update
-- `list_notes` returns `{ "notes": [{ "id": 123, "title": "..." }] }` instead of full note objects
+- `list_notes` returns `{ "notes": [{ "id": 123, "title": "..." }], "hasMore": true, "nextOffset": 10 }` so callers can see whether the current page is the last one
+- `list_notes` returns ids and titles only, not full note objects or metadata
 - `list_notes` defaults to `{ "limit": 10, "offset": 0 }`
 - `list_notes` accepts paging arguments like `{ "limit": 10, "offset": 20 }` to fetch later pages of note ids and titles
+- `list_notes` sets `"hasMore": false` and `"nextOffset": null` on the final page, so the caller does not need to infer completion from the array length
 - `read_note` reads the full note object by `{ "id": 123 }` for model-side inspection when content or metadata are actually needed
 - `open_note` opens the full note object by `{ "id": 123 }` for the user-facing "show this note" action
 - `get_note` remains a backward-compatible alias for `read_note`
