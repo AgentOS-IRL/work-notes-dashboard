@@ -34,7 +34,6 @@ const {
   isLoadingSession,
   errorMessage,
   hasMessages,
-  addSuggestion,
   loadSession,
   loadSessions,
   sendMessage,
@@ -131,30 +130,6 @@ onMounted(() => {
             :tool-calls="message.toolCalls"
           />
         </article>
-      </div>
-
-      <div v-if="!compact" class="prompt-row" aria-label="Suggested prompts">
-        <button
-          type="button"
-          class="prompt-chip"
-          @click="addSuggestion('Draft a weekly status update.')"
-        >
-          Weekly update
-        </button>
-        <button
-          type="button"
-          class="prompt-chip"
-          @click="addSuggestion('Summarize the next action items.')"
-        >
-          Action items
-        </button>
-        <button
-          type="button"
-          class="prompt-chip"
-          @click="addSuggestion('Turn this into a clean meeting note.')"
-        >
-          Meeting note
-        </button>
       </div>
 
       <form v-if="!compact" class="composer" @submit.prevent="sendMessage">
@@ -426,32 +401,6 @@ h2 {
   margin: 0;
   line-height: 1.65;
   white-space: pre-wrap;
-}
-
-.prompt-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.prompt-chip {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-muted) 80%, transparent);
-  color: var(--text);
-  padding: 9px 12px;
-  font: 500 0.84rem/1 var(--mono-font);
-  transition:
-    transform 160ms ease,
-    border-color 160ms ease,
-    background-color 160ms ease;
-}
-
-.prompt-chip:hover,
-.prompt-chip:focus-visible {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
-  background: color-mix(in srgb, var(--panel-elevated) 80%, transparent);
 }
 
 .composer {
