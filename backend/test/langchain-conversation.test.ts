@@ -232,6 +232,11 @@ test('conversation service tracks created and updated note ids separately', asyn
           }
 
           if (invocationCount === 2) {
+            assert.match(
+              systemMessageContent(messages),
+              /The conversation is locked to a single note, so treat that note as the only editable target\./
+            );
+            assert.match(systemMessageContent(messages), /You may only use update_note\./);
             assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
             return new AIMessage({
               content: 'I will also update the sprint plan.',
@@ -249,6 +254,11 @@ test('conversation service tracks created and updated note ids separately', asyn
             });
           }
 
+          assert.match(
+            systemMessageContent(messages),
+            /The conversation is locked to a single note, so treat that note as the only editable target\./
+          );
+          assert.match(systemMessageContent(messages), /You may only use update_note\./);
           assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
           return new AIMessage({
             content: 'Created and updated notes.'

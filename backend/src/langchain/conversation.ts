@@ -77,6 +77,19 @@ function buildSystemInstruction(lockedNoteId: number | null) {
   return lockedNoteId == null ? UNLOCKED_SYSTEM_INSTRUCTION : LOCKED_SYSTEM_INSTRUCTION;
 }
 
+function refreshSystemMessage(messages: BaseMessage[], lockedNoteId: number | null) {
+  if (messages.length === 0 || !('getType' in messages[0]) || messages[0].getType() !== 'system') {
+    return [new SystemMessage(buildSystemInstruction(lockedNoteId)), ...messages];
+  }
+
+  const systemInstruction = buildSystemInstruction(lockedNoteId);
+  if (messages[0].content === systemInstruction) {
+    return messages;
+  }
+
+  return [new SystemMessage(systemInstruction), ...messages.slice(1)];
+}
+
 function toBaseMessages(messages: ChatTurn[]): BaseMessage[] {
   return messages.map((message) =>
     message.role === 'user'
@@ -206,6 +219,7 @@ export function createConversationService(options: {
       let allowEmptyReplyForOpenNote = false;
 
       for (let loopIndex = 0; loopIndex < MAX_TOOL_LOOPS; loopIndex += 1) {
+        messages = refreshSystemMessage(messages, lockedNoteId);
         const modelWithTools = model.bindTools(
           lockedNoteId
             ? [tools.updateNoteTool]
