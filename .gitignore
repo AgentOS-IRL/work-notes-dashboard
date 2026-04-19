@@ -16,3 +16,4 @@ plan/
 **/.output/**
 frontend/dist
 backend/data/notes.sqlite
+scratch*

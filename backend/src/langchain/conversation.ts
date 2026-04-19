@@ -78,24 +78,24 @@ function extractAssistantText(message: BaseMessage) {
 
   const text = Array.isArray(message.content)
     ? message.content
-        .map((block) => {
-          if (typeof block === 'string') {
-            return block;
-          }
+      .map((block) => {
+        if (typeof block === 'string') {
+          return block;
+        }
 
-          if (
-            block &&
-            typeof block === 'object' &&
-            'text' in block &&
-            typeof block.text === 'string'
-          ) {
-            return block.text;
-          }
+        if (
+          block &&
+          typeof block === 'object' &&
+          'text' in block &&
+          typeof block.text === 'string'
+        ) {
+          return block.text;
+        }
 
-          return '';
-        })
-        .join('')
-        .trim()
+        return '';
+      })
+      .join('')
+      .trim()
     : '';
 
   return text;
@@ -127,6 +127,18 @@ function collectOpenedNoteIds(toolName: string, result: ToolResult) {
   }
 
   return [];
+}
+
+function buildOpenNoteAssistantMessage(openedNoteIds: number[]) {
+  if (openedNoteIds.length === 0) {
+    return 'Opened the note.';
+  }
+
+  if (openedNoteIds.length === 1) {
+    return `Opened note ${openedNoteIds[0]}.`;
+  }
+
+  return `Opened notes ${openedNoteIds.join(', ')}.`;
 }
 
 function isNoteToolName(toolName: string): toolName is 'create_note' | 'get_note' | 'list_notes' | 'open_note' | 'read_note' | 'update_note' {
@@ -181,18 +193,42 @@ export function createConversationService(options: {
       const openedNoteIds = new Set<number>();
       const toolCalls: ChatToolCall[] = [];
       let messages: BaseMessage[] = baseMessages;
+      let allowEmptyReplyForOpenNote = false;
 
       for (let loopIndex = 0; loopIndex < MAX_TOOL_LOOPS; loopIndex += 1) {
         const assistantReply = await modelWithTools.invoke(messages);
         messages = [...messages, assistantReply];
 
         const assistantToolCalls = AIMessage.isInstance(assistantReply) ? assistantReply.tool_calls ?? [] : [];
+        const assistantToolCallNames = assistantToolCalls.map((toolCall) => toolCall.name);
         toolCalls.push(...assistantToolCalls.map((toolCall) => ({ ...toolCall })));
 
         if (assistantToolCalls.length === 0) {
           const reply = extractAssistantText(assistantReply);
           if (!reply) {
-            throw new Error('The assistant returned an empty response.');
+            if (allowEmptyReplyForOpenNote) {
+              return {
+                assistantMessage: {
+                  role: 'assistant',
+                  content: buildOpenNoteAssistantMessage([...openedNoteIds])
+                },
+                toolCalls,
+                createdNoteIds: [...createdNoteIds],
+                updatedNoteIds: [...updatedNoteIds],
+                changedNoteIds: [...changedNoteIds],
+                openedNoteIds: [...openedNoteIds],
+                notesChanged: createdNoteIds.size > 0 || updatedNoteIds.size > 0 || changedNoteIds.size > 0
+              };
+            }
+
+            throw new Error(
+              `The assistant returned an empty response. ${JSON.stringify({
+                content: assistantReply.content,
+                additional_kwargs: assistantReply.additional_kwargs,
+                response_metadata: assistantReply.response_metadata,
+                tool_calls: AIMessage.isInstance(assistantReply) ? assistantReply.tool_calls ?? [] : []
+              })}`
+            );
           }
 
           return {
@@ -253,6 +289,10 @@ export function createConversationService(options: {
             ];
           }
         }
+
+        allowEmptyReplyForOpenNote =
+          assistantToolCalls.length > 0 &&
+          assistantToolCallNames.every((toolName) => toolName === 'open_note');
       }
 
       throw new Error('The conversation did not finish after several tool calls.');
