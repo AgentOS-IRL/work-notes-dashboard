@@ -10,6 +10,40 @@ import type {
   ChatSessionSummary
 } from '~/types/chat';
 
+export const NOTE_DUMP_PREFACE = 'Please update, reformat, and organize the note with the new information.';
+
+function buildNoteDumpContent(content: string) {
+  const trimmedContent = content.trim();
+
+  if (!trimmedContent) {
+    return NOTE_DUMP_PREFACE;
+  }
+
+  return `${NOTE_DUMP_PREFACE}\n\n${trimmedContent}`;
+}
+
+function buildChatRequestMessages(messages: ChatMessage[], noteDumpLocked: boolean) {
+  if (!noteDumpLocked || messages.length === 0) {
+    return messages;
+  }
+
+  const lastMessageIndex = messages.length - 1;
+  const lastMessage = messages[lastMessageIndex];
+
+  if (lastMessage.role !== 'user') {
+    return messages;
+  }
+
+  return messages.map((message, index) =>
+    index === lastMessageIndex
+      ? {
+          ...message,
+          content: buildNoteDumpContent(message.content)
+        }
+      : message
+  );
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     headers: {
@@ -178,7 +212,7 @@ export function useChat(options: {
     }
   }
 
-  async function sendMessage() {
+  async function sendMessage(sendOptions: { noteDumpLocked?: boolean } = {}) {
     const trimmed = draft.value.trim();
     if (!trimmed || isSending.value || isLoadingSession.value) {
       return;
@@ -198,13 +232,14 @@ export function useChat(options: {
     draft.value = '';
     isSending.value = true;
     errorMessage.value = '';
+    const requestMessages = buildChatRequestMessages(nextMessages, sendOptions.noteDumpLocked ?? false);
 
     try {
       const response = await requestJson<ChatResponse>('/api/chat', {
         method: 'POST',
         body: JSON.stringify({
           sessionId: sessionId.value,
-          messages: nextMessages
+          messages: requestMessages
         } satisfies ChatRequest)
       });
 

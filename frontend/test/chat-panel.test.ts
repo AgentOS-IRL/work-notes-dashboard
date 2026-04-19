@@ -104,13 +104,26 @@ describe('ChatPanel', () => {
     expect(wrapper.find('.prompt-row').exists()).toBe(false);
     expect(wrapper.findAll('.prompt-chip')).toHaveLength(0);
     expect(wrapper.find('form.composer').exists()).toBe(true);
+    expect(wrapper.get('.note-dump-indicator').attributes('aria-pressed')).toBe('false');
 
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('#chat-draft').trigger('keydown', { key: 'Enter' });
     await flushPromises();
 
+    const postCall = fetchMock.mock.calls.find(
+      ([url, init]) => url === '/api/chat' && (init as RequestInit | undefined)?.method === 'POST'
+    );
+    const requestBody = JSON.parse(postCall?.[1]?.body as string) as {
+      sessionId: string;
+      messages: Array<{ role: string; content: string; toolCalls: unknown[] }>;
+    };
+
     expect(wrapper.find('.status-pill').text()).toBe('session active');
-    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
+    expect(requestBody.messages[0]).toMatchObject({
+      role: 'user',
+      content: 'Refine the sprint plan.',
+      toolCalls: []
+    });
     expect(wrapper.findAll('.message')).toHaveLength(2);
     expect(wrapper.find('.message.user').text()).toContain('Refine the sprint plan.');
     expect(wrapper.find('.message.assistant').text()).toContain('I updated the sprint plan note.');
@@ -182,6 +195,49 @@ describe('ChatPanel', () => {
               metadata: {
                 created: [],
                 updated: [3]
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I refined the sprint plan.'
+          },
+          toolCalls: [],
+          createdNoteIds: [],
+          updatedNoteIds: [3],
+          changedNoteIds: [3],
+          openedNoteIds: [],
+          lockedNoteId: 3,
+          notesChanged: true
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Named session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            },
+            {
+              id: 'session-2',
+              name: null,
+              createdAt: 1_700_000_100_000,
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: 3
               }
             }
           ]
@@ -456,6 +512,26 @@ describe('ChatPanel', () => {
     expect(wrapper.get('.tool-call-list').text()).toContain('createNote');
     expect(wrapper.vm.sessionId).toBe('session-2');
     expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
+    expect(wrapper.get('.note-dump-indicator').attributes('aria-pressed')).toBe('true');
+
+    await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
+    await wrapper.get('form.composer').trigger('submit');
+    await flushPromises();
+
+    const postCall = fetchMock.mock.calls.find(
+      ([url, init]) => url === '/api/chat' && (init as RequestInit | undefined)?.method === 'POST'
+    );
+    const requestBody = JSON.parse(postCall?.[1]?.body as string) as {
+      sessionId: string;
+      messages: Array<{ role: string; content: string; toolCalls: unknown[] }>;
+    };
+
+    expect(requestBody.messages[2]).toMatchObject({
+      role: 'user',
+      content:
+        'Please update, reformat, and organize the note with the new information.\n\nRefine the sprint plan.',
+      toolCalls: []
+    });
   });
 
   it('clears the transcript and rotates the session id', async () => {

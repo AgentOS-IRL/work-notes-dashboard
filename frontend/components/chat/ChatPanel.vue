@@ -40,13 +40,19 @@ const {
   }
 });
 
+function submitChatMessage() {
+  void sendMessage({
+    noteDumpLocked: isNoteDumpLocked.value
+  });
+}
+
 function handleComposerKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing) {
     return;
   }
 
   event.preventDefault();
-  void sendMessage();
+  submitChatMessage();
 }
 
 function handleSessionChange() {
@@ -80,13 +86,16 @@ onMounted(() => {
       <div class="header-status" aria-label="Chat status">
         <span class="status-token">~/notes</span>
         <span class="status-pill">{{ hasMessages ? 'session active' : 'ready' }}</span>
-        <span
+        <button
+          type="button"
           class="note-dump-indicator"
           :class="{ active: isNoteDumpLocked }"
+          :aria-pressed="isNoteDumpLocked"
+          :aria-label="isNoteDumpLocked ? 'Note dump mode on' : 'Note dump mode off'"
           aria-live="polite"
         >
           {{ isNoteDumpLocked ? 'note dump mode on' : 'note dump mode off' }}
-        </span>
+        </button>
         <label class="session-picker">
           <span class="picker-label">Load session</span>
           <select
@@ -135,7 +144,7 @@ onMounted(() => {
         </article>
       </div>
 
-      <form v-if="!compact" class="composer" @submit.prevent="sendMessage">
+      <form v-if="!compact" class="composer" @submit.prevent="submitChatMessage">
         <label class="composer-label" for="chat-draft">
           <span class="composer-hint">prompt</span>
           <div class="composer-input">
@@ -304,6 +313,7 @@ h2 {
   font: 600 0.75rem/1 var(--mono-font);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  cursor: default;
   transition:
     border-color 160ms ease,
     background-color 160ms ease,
@@ -314,6 +324,11 @@ h2 {
   border-color: color-mix(in srgb, var(--accent) 68%, var(--border));
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent-strong) 84%, #000), var(--accent));
   color: white;
+}
+
+.note-dump-indicator:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 62%, white);
+  outline-offset: 2px;
 }
 
 .clear-button {

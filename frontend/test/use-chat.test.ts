@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { formatChatSessionLabel, useChat } from '~/composables/useChat';
+import { NOTE_DUMP_PREFACE, formatChatSessionLabel, useChat } from '~/composables/useChat';
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(body), {
@@ -63,6 +63,48 @@ describe('useChat', () => {
         createdAt: 1_700_000_100_000
       })
     ).toMatch(/:/);
+  });
+
+  it('sends the raw prompt when note dump mode is off', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ sessions: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I noted the update.'
+          },
+          toolCalls: [],
+          createdNoteIds: [],
+          updatedNoteIds: [],
+          changedNoteIds: [],
+          openedNoteIds: [],
+          notesChanged: false
+        })
+      )
+      .mockResolvedValueOnce(jsonResponse({ sessions: [] }));
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat();
+    await chat.loadSessions();
+    chat.draft.value = 'Capture the meeting notes.';
+    await chat.sendMessage();
+
+    const postCall = fetchMock.mock.calls.find(
+      ([url, init]) => url === '/api/chat' && (init as RequestInit | undefined)?.method === 'POST'
+    );
+    const requestBody = JSON.parse(postCall?.[1]?.body as string) as {
+      sessionId: string;
+      messages: Array<{ role: string; content: string; toolCalls: unknown[] }>;
+    };
+
+    expect(requestBody.messages[0]).toMatchObject({
+      role: 'user',
+      content: 'Capture the meeting notes.',
+      toolCalls: []
+    });
   });
 
   it('restores a loaded session transcript and continues sending from it', async () => {
@@ -200,7 +242,9 @@ describe('useChat', () => {
     expect(chat.draft.value).toBe('');
 
     chat.draft.value = 'Refine the sprint plan.';
-    await chat.sendMessage();
+    await chat.sendMessage({
+      noteDumpLocked: true
+    });
 
     expect(fetchMock).toHaveBeenCalledWith('/api/chat/sessions', expect.any(Object));
     expect(fetchMock).toHaveBeenCalledWith(
@@ -242,7 +286,7 @@ describe('useChat', () => {
     });
     expect(requestBody.messages[2]).toMatchObject({
       role: 'user',
-      content: 'Refine the sprint plan.',
+      content: `${NOTE_DUMP_PREFACE}\n\nRefine the sprint plan.`,
       toolCalls: []
     });
     expect(chat.messages.value).toHaveLength(4);
