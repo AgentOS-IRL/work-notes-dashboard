@@ -103,7 +103,9 @@ test('LangChain note tools create, read, open, list, and update notes', async ()
           id: 10,
           title: 'Note 10'
         }
-      ]
+      ],
+      hasMore: true,
+      nextOffset: 10
     });
 
     const paged = await tools.listNotesTool.invoke({
@@ -124,7 +126,28 @@ test('LangChain note tools create, read, open, list, and update notes', async ()
           id: 11,
           title: 'Note 11'
         }
-      ]
+      ],
+      hasMore: true,
+      nextOffset: 11
+    });
+
+    const finalPage = await tools.listNotesTool.invoke({
+      limit: 3,
+      offset: 10
+    });
+    assert.deepEqual(finalPage, {
+      notes: [
+        {
+          id: 11,
+          title: 'Note 11'
+        },
+        {
+          id: 12,
+          title: 'Note 12'
+        }
+      ],
+      hasMore: false,
+      nextOffset: null
     });
 
     const updated = await tools.updateNoteTool.invoke({
@@ -185,7 +208,9 @@ test('listNotesTool returns an empty list for an empty repository', async () => 
     const listed = await tools.listNotesTool.invoke({});
 
     assert.deepEqual(listed, {
-      notes: []
+      notes: [],
+      hasMore: false,
+      nextOffset: null
     });
   } finally {
     database.close();

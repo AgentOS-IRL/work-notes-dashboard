@@ -70,7 +70,9 @@ test('conversation service uses note tools to inspect and update notes', async (
                     id: 2,
                     title: 'Meeting notes'
                   }
-                ]
+                ],
+                hasMore: false,
+                nextOffset: null
               })
             );
 
