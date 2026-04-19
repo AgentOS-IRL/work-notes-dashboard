@@ -112,9 +112,7 @@ export function useChat(options: {
 
     sessions.value = data.sessions;
     const currentSession = data.sessions.find((session) => session.id === sessionId.value);
-    if (currentSession) {
-      updateActiveSessionMetadata(currentSession.metadata);
-    }
+    updateActiveSessionMetadata(currentSession?.metadata ?? null);
     syncSelectedSessionId();
   }
 
@@ -136,6 +134,7 @@ export function useChat(options: {
     messages.value = [];
     draft.value = '';
     errorMessage.value = '';
+    updateActiveSessionMetadata(null);
     nextMessageId = 1;
   }
 
@@ -220,10 +219,7 @@ export function useChat(options: {
       messages.value = [...nextMessages, assistantMessage];
       updateActiveSessionMetadata({
         ...activeSessionMetadata.value,
-        lockedNoteId:
-          response.lockedNoteId ??
-          (response.createdNoteIds.length > 0 ? response.createdNoteIds[0] : null) ??
-          activeSessionMetadata.value.lockedNoteId
+        lockedNoteId: response.lockedNoteId ?? (response.createdNoteIds.length > 0 ? response.createdNoteIds[0] : null)
       });
 
       if (

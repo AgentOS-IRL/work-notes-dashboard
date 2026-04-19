@@ -272,6 +272,131 @@ describe('useChat', () => {
     expect(notesChanged).toHaveBeenCalledWith([1]);
   });
 
+  it('clears stale lock metadata when the active session is no longer in the session list', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Weekly update',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: 1
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-2',
+              name: 'Another session',
+              createdAt: 1_700_000_100_000,
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat();
+    chat.sessionId.value = 'session-1';
+
+    await chat.loadSessions();
+
+    expect(chat.isNoteDumpLocked.value).toBe(true);
+
+    chat.sessionId.value = 'session-missing';
+    await chat.loadSessions();
+
+    expect(chat.isNoteDumpLocked.value).toBe(false);
+    expect(chat.activeSessionMetadata.value).toEqual({
+      created: [],
+      updated: [],
+      lockedNoteId: null
+    });
+  });
+
+  it('clears the lock when a later response does not return a locked note', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Weekly update',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: 1
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I updated the sprint plan.'
+          },
+          toolCalls: [],
+          createdNoteIds: [],
+          updatedNoteIds: [1],
+          changedNoteIds: [1],
+          openedNoteIds: [],
+          notesChanged: true
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Weekly update',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [1],
+                lockedNoteId: null
+              }
+            }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat();
+    chat.sessionId.value = 'session-1';
+
+    await chat.loadSessions();
+    expect(chat.isNoteDumpLocked.value).toBe(true);
+
+    chat.draft.value = 'Refine the sprint plan.';
+    await chat.sendMessage();
+
+    expect(chat.isNoteDumpLocked.value).toBe(false);
+    expect(chat.activeSessionMetadata.value.lockedNoteId).toBe(null);
+  });
+
   it('surfaces opened note ids separately from note changes', async () => {
     const noteOpened = vi.fn();
     const notesChanged = vi.fn();
