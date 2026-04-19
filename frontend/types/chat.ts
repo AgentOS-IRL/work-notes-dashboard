@@ -28,6 +28,12 @@ export interface ChatSessionMetadata {
   updated: number[];
 }
 
+export interface ChatNoteActivity {
+  createdNoteIds: number[];
+  changedNoteIds: number[];
+  openedNoteIds: number[];
+}
+
 export type ChatToolCall = Record<string, unknown>;
 
 export interface ChatSessionListResponse {

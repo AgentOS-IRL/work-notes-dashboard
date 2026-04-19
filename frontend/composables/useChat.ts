@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import type {
   ChatMessage,
+  ChatNoteActivity,
   ChatRequest,
   ChatResponse,
   ChatSessionDetailResponse,
@@ -51,10 +52,7 @@ export function formatChatSessionLabel(session: Pick<ChatSessionSummary, 'name' 
 export function useChat(options: {
   onNotesChanged?: (changedNoteIds: number[]) => void;
   onNoteOpened?: (openedNoteIds: number[]) => void;
-  onNotesActivity?: (activity: {
-    changedNoteIds: number[];
-    openedNoteIds: number[];
-  }) => void;
+  onNotesActivity?: (activity: ChatNoteActivity) => void;
 } = {}) {
   const messages = ref<ChatMessage[]>([]);
   const sessions = ref<ChatSessionSummary[]>([]);
@@ -194,9 +192,14 @@ export function useChat(options: {
 
       messages.value = [...nextMessages, assistantMessage];
 
-      if (response.changedNoteIds.length > 0 || response.openedNoteIds.length > 0) {
+      if (
+        response.createdNoteIds.length > 0 ||
+        response.changedNoteIds.length > 0 ||
+        response.openedNoteIds.length > 0
+      ) {
         if (options.onNotesActivity) {
           options.onNotesActivity({
+            createdNoteIds: response.createdNoteIds,
             changedNoteIds: response.changedNoteIds,
             openedNoteIds: response.openedNoteIds
           });

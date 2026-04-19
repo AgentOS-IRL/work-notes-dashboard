@@ -112,6 +112,7 @@ describe('ChatPanel', () => {
     expect(wrapper.emitted('notes-activity')).toEqual([
       [
         {
+          createdNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: []
         }
@@ -257,6 +258,7 @@ describe('ChatPanel', () => {
     expect(wrapper.emitted('notes-activity')).toEqual([
       [
         {
+          createdNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [4]
         }
@@ -325,6 +327,7 @@ describe('ChatPanel', () => {
     expect(wrapper.emitted('notes-activity')).toEqual([
       [
         {
+          createdNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [4]
         }

@@ -4,8 +4,9 @@ import ChatPanel from '~/components/chat/ChatPanel.vue';
 import NotesPanel from '~/components/notes/NotesPanel.vue';
 import NotesTree from '~/components/notes/NotesTree.vue';
 import { useNotes } from '~/composables/useNotes';
+import type { ChatNoteActivity } from '~/types/chat';
 
-const workspaceMode = ref<'chat-first' | 'explore-notes'>('chat-first');
+const noteDumpMode = ref(false);
 
 const {
   noteTree,
@@ -19,20 +20,19 @@ const {
   saving
 } = useNotes();
 
-const exploreLabel = computed(() =>
-  workspaceMode.value === 'chat-first' ? 'Explore' : 'Chat'
-);
+const noteDumpLabel = computed(() => (noteDumpMode.value ? 'On' : 'Off'));
 
 onMounted(() => {
   void loadNotes();
 });
 
-function handleNotesActivity(activity: {
-  changedNoteIds: number[];
-  openedNoteIds: number[];
-}) {
+function handleNotesActivity(activity: ChatNoteActivity) {
+  if (activity.createdNoteIds.length > 0 && !noteDumpMode.value) {
+    noteDumpMode.value = true;
+  }
+
   void loadNotes({
-    focusNoteIds: [...activity.changedNoteIds, ...activity.openedNoteIds]
+    focusNoteIds: [...activity.createdNoteIds, ...activity.changedNoteIds, ...activity.openedNoteIds]
   });
 }
 
@@ -50,14 +50,13 @@ async function handleDeleteNote() {
   await deleteNote(note.id);
 }
 
-function toggleWorkspaceMode() {
-  workspaceMode.value =
-    workspaceMode.value === 'chat-first' ? 'explore-notes' : 'chat-first';
+function toggleNoteDumpMode() {
+  noteDumpMode.value = !noteDumpMode.value;
 }
 </script>
 
 <template>
-  <main class="screen" :class="workspaceMode">
+  <main class="screen" :class="{ 'note-dump-mode': noteDumpMode }">
     <div class="backdrop" aria-hidden="true" />
 
     <section class="shell">
@@ -67,21 +66,25 @@ function toggleWorkspaceMode() {
         </div>
 
         <div class="toolbar" aria-label="Workspace controls">
-          <button type="button" class="toggle-button" @click="toggleWorkspaceMode">
-            {{ exploreLabel }}
+          <button
+            type="button"
+            class="toggle-button"
+            :class="{ pressed: noteDumpMode }"
+            :aria-pressed="noteDumpMode"
+            @click="toggleNoteDumpMode"
+          >
+            <span class="toggle-label">Note dump mode</span>
+            <span class="toggle-state">{{ noteDumpLabel }}</span>
           </button>
         </div>
       </header>
 
       <div class="workspace">
         <aside class="left-rail">
-          <ChatPanel
-            v-show="workspaceMode === 'chat-first'"
-            @notes-activity="handleNotesActivity"
-          />
+          <ChatPanel v-show="!noteDumpMode" @notes-activity="handleNotesActivity" />
 
           <NotesTree
-            v-if="workspaceMode === 'explore-notes'"
+            v-if="noteDumpMode"
             :nodes="noteTree"
             :selected-note-id="selectedNoteId"
             @select="handleSelectNote"
@@ -93,7 +96,7 @@ function toggleWorkspaceMode() {
           :loading="loading"
           :error-message="errorMessage"
           :mutating="saving"
-          :can-delete="workspaceMode === 'explore-notes'"
+          :can-delete="noteDumpMode"
           @delete="handleDeleteNote"
         />
       </div>
@@ -182,6 +185,9 @@ h1 {
 }
 
 .toggle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
   border-radius: 999px;
   padding: 11px 16px;
@@ -190,7 +196,37 @@ h1 {
   cursor: pointer;
   transition:
     transform 160ms ease,
-    opacity 160ms ease;
+    opacity 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.toggle-button.pressed {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel-muted) 88%, transparent), var(--panel-elevated));
+  color: var(--text-strong);
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    inset 0 -3px 10px rgba(0, 0, 0, 0.24),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.toggle-label {
+  font-weight: 700;
+}
+
+.toggle-state {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.18) 90%, transparent);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.toggle-button.pressed .toggle-state {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel-muted));
 }
 
 .toggle-button:hover,
@@ -229,6 +265,11 @@ h1 {
 
   .toolbar {
     justify-content: flex-start;
+  }
+
+  .toggle-button {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

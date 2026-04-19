@@ -13,7 +13,7 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 }
 
 describe('index page', () => {
-  it('renders the workspace shell, explores notes, deletes a note, and loads a new chat-created note', async () => {
+  it('renders the workspace shell, toggles note dump mode, deletes a note, and auto-enables it after note creation', async () => {
     let notesListCount = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -116,15 +116,17 @@ describe('index page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('Work Notes');
-    expect(wrapper.text()).toContain('Explore');
+    expect(wrapper.text()).toContain('Note dump mode');
+    expect(wrapper.text()).toContain('Off');
     expect(wrapper.text()).toContain('Sprint plan');
     expect(wrapper.text()).toContain('Outline milestones');
     expect(wrapper.find('.delete-button').exists()).toBe(false);
+    expect(wrapper.get('button.toggle-button').attributes('aria-pressed')).toBe('false');
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Chat');
+    expect(wrapper.get('button.toggle-button').attributes('aria-pressed')).toBe('true');
     expect(wrapper.find('.notes-tree').exists()).toBe(true);
 
     const noteButtons = wrapper.findAll('.tree-item');
@@ -145,6 +147,7 @@ describe('index page', () => {
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
 
+    expect(wrapper.get('button.toggle-button').attributes('aria-pressed')).toBe('false');
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('form.composer').trigger('submit');
     await flushPromises();
@@ -152,9 +155,7 @@ describe('index page', () => {
     expect(wrapper.text()).toContain('I created a new weekly update note.');
     expect(wrapper.text()).toContain('createNote');
     expect(wrapper.text()).toContain('Weekly update');
-
-    await wrapper.get('button.toggle-button').trigger('click');
-    await flushPromises();
+    expect(wrapper.get('button.toggle-button').attributes('aria-pressed')).toBe('true');
 
     expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
     expect(wrapper.find('.note-meta h3').text()).toBe('Weekly update');
@@ -214,18 +215,12 @@ describe('index page', () => {
     const wrapper = mount(IndexPage);
     await flushPromises();
 
-    await wrapper.get('button.toggle-button').trigger('click');
-    await flushPromises();
-
+    expect(wrapper.get('button.toggle-button').attributes('aria-pressed')).toBe('false');
     await wrapper.get('#chat-draft').setValue('Open the retro note.');
     await wrapper.get('form.composer').trigger('submit');
     await flushPromises();
 
     expect(wrapper.text()).toContain('I opened the retro note.');
-
-    await wrapper.get('button.toggle-button').trigger('click');
-    await flushPromises();
-
     expect(wrapper.find('.note-meta h3').text()).toBe('Retro');
     expect(wrapper.find('.markdown-body h1').text()).toBe('Retro');
   });

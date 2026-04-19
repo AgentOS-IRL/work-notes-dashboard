@@ -335,6 +335,7 @@ describe('useChat', () => {
     await chat.sendMessage();
 
     expect(noteActivity).toHaveBeenCalledWith({
+      createdNoteIds: [2],
       changedNoteIds: [2],
       openedNoteIds: [7]
     });

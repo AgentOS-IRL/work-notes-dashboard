@@ -2,6 +2,7 @@
 import { onMounted } from 'vue';
 import ToolCallList from '~/components/chat/ToolCallList.vue';
 import { useChat } from '~/composables/useChat';
+import type { ChatNoteActivity } from '~/types/chat';
 
 const props = withDefaults(
   defineProps<{
@@ -17,10 +18,7 @@ const emit = defineEmits<{
   (event: 'note-opened', openedNoteIds: number[]): void;
   (
     event: 'notes-activity',
-    activity: {
-      changedNoteIds: number[];
-      openedNoteIds: number[];
-    }
+    activity: ChatNoteActivity
   ): void;
 }>();
 
