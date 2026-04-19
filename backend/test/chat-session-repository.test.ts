@@ -171,7 +171,8 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
     assert.equal(typeof session?.lastActivityAt, 'number');
     assert.deepEqual(session?.metadata, {
       created: [],
-      updated: []
+      updated: [],
+      lockedNoteId: null
     });
     assert.ok((session?.lastActivityAt ?? 0) > 0);
     assert.equal(session?.createdAt, session?.lastActivityAt);
@@ -204,7 +205,8 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       lastActivityAt: NOW,
       metadata: {
         created: [],
-        updated: []
+        updated: [],
+        lockedNoteId: null
       },
       toolCalls: []
     });
@@ -234,7 +236,8 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
       lastActivityAt: NOW,
       metadata: {
         created: [],
-        updated: []
+        updated: [],
+        lockedNoteId: null
       },
       toolCalls: []
     });
@@ -242,15 +245,18 @@ test('ChatSessionRepository creates sessions, stores messages, and renames sessi
 
     const metadataUpdated = repository.updateSessionMetadata('session-123', {
       created: [1, 2, 1],
-      updated: [2, 3, 3]
+      updated: [2, 3, 3],
+      lockedNoteId: 4
     });
     assert.deepEqual(metadataUpdated.metadata, {
       created: [1, 2],
-      updated: [2, 3]
+      updated: [2, 3],
+      lockedNoteId: 4
     });
     assert.deepEqual(repository.getSessionById('session-123')?.metadata, {
       created: [1, 2],
-      updated: [2, 3]
+      updated: [2, 3],
+      lockedNoteId: 4
     });
   } finally {
     database.close();
@@ -403,7 +409,8 @@ test('ChatSessionRepository normalizes legacy session metadata rows', () => {
       lastActivityAt: 1_700_000_000_000,
       metadata: {
         created: [1, 2],
-        updated: [2, 3]
+        updated: [2, 3],
+        lockedNoteId: null
       },
       toolCalls: [
         {
@@ -426,7 +433,8 @@ test('ChatSessionRepository normalizes legacy session metadata rows', () => {
           lastActivityAt: 1_700_000_000_000,
           metadata: {
             created: [1, 2],
-            updated: [2, 3]
+            updated: [2, 3],
+            lockedNoteId: null
           }
         }
       ]
@@ -487,7 +495,8 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
           lastActivityAt: NOW - 1_000,
           metadata: {
             created: [],
-            updated: []
+            updated: [],
+            lockedNoteId: null
           }
         },
         {
@@ -497,7 +506,8 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
           lastActivityAt: NOW - 2_000,
           metadata: {
             created: [],
-            updated: []
+            updated: [],
+            lockedNoteId: null
           }
         },
         {
@@ -507,7 +517,8 @@ test('ChatSessionRepository lists sessions by recency and loads full transcripts
           lastActivityAt: NOW - 5_000,
           metadata: {
             created: [],
-            updated: []
+            updated: [],
+            lockedNoteId: null
           }
         }
       ]

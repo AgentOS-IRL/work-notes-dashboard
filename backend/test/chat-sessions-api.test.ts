@@ -39,13 +39,13 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
       'Named session',
       NOW - 2_000,
       NOW - 1_000,
-      '{"created":[1],"updated":[1,2]}'
+      '{"created":[1],"updated":[1,2],"lockedNoteId":1}'
     );
   database
     .prepare(
       'INSERT INTO chat_sessions (id, name, createdAt, lastActivityAt, metadata) VALUES (?, ?, ?, ?, ?)'
     )
-    .run('session-2', null, NOW - 4_000, NOW - 2_000, '{"created":[],"updated":[3]}');
+    .run('session-2', null, NOW - 4_000, NOW - 2_000, '{"created":[],"updated":[3],"lockedNoteId":null}');
   database
     .prepare(
       'INSERT INTO chat_messages (sessionId, role, content, createdAt, toolCalls) VALUES (?, ?, ?, ?, ?)'
@@ -87,7 +87,8 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
               lastActivityAt: NOW - 1_000,
               metadata: {
                 created: [1],
-                updated: [1, 2]
+                updated: [1, 2],
+                lockedNoteId: 1
               }
             },
             {
@@ -97,7 +98,8 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
               lastActivityAt: NOW - 2_000,
               metadata: {
                 created: [],
-                updated: [3]
+                updated: [3],
+                lockedNoteId: null
               }
             }
           ]
@@ -116,7 +118,8 @@ test('chat sessions API lists sessions and loads transcripts', async () => {
             lastActivityAt: NOW - 2_000,
             metadata: {
               created: [],
-              updated: [3]
+              updated: [3],
+              lockedNoteId: null
             },
             toolCalls: []
           },

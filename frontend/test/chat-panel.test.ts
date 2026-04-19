@@ -26,7 +26,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: null
               }
             },
             {
@@ -36,7 +37,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_100_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: null
               }
             }
           ]
@@ -66,7 +68,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [],
-                updated: [1]
+                updated: [1],
+                lockedNoteId: 1
               }
             },
             {
@@ -76,7 +79,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_100_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: null
               }
             }
           ]
@@ -91,7 +95,7 @@ describe('ChatPanel', () => {
     expect(wrapper.find('header.panel-header').exists()).toBe(true);
     expect(wrapper.find('.status-token').text()).toBe('~/notes');
     expect(wrapper.find('.status-pill').text()).toBe('ready');
-    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('false');
+    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode off');
     expect(wrapper.get('button.clear-button').text()).toBe('Clear');
     expect(wrapper.get('select').exists()).toBe(true);
     expect(wrapper.findAll('option')).toHaveLength(3);
@@ -101,17 +105,12 @@ describe('ChatPanel', () => {
     expect(wrapper.findAll('.prompt-chip')).toHaveLength(0);
     expect(wrapper.find('form.composer').exists()).toBe(true);
 
-    await wrapper.get('button.note-dump-button').trigger('click');
-    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('true');
-    await wrapper.get('button.note-dump-button').trigger('click');
-    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('false');
-
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('#chat-draft').trigger('keydown', { key: 'Enter' });
     await flushPromises();
 
     expect(wrapper.find('.status-pill').text()).toBe('session active');
-    expect(wrapper.get('button.note-dump-button').attributes('aria-pressed')).toBe('true');
+    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
     expect(wrapper.findAll('.message')).toHaveLength(2);
     expect(wrapper.find('.message.user').text()).toContain('Refine the sprint plan.');
     expect(wrapper.find('.message.assistant').text()).toContain('I updated the sprint plan note.');
@@ -141,7 +140,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: null
               }
             }
           ]
@@ -302,6 +302,7 @@ describe('ChatPanel', () => {
           updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [4],
+          lockedNoteId: 1,
           notesChanged: true
         })
       )
@@ -315,7 +316,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: 1
               }
             }
           ]
@@ -355,7 +357,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: null
               }
             },
             {
@@ -365,7 +368,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_100_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: 3
               }
             }
           ]
@@ -380,7 +384,8 @@ describe('ChatPanel', () => {
             lastActivityAt: 1_700_000_100_000,
             metadata: {
               created: [],
-              updated: []
+              updated: [],
+              lockedNoteId: 3
             }
           },
           messages: [
@@ -418,7 +423,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_000_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: null
               }
             },
             {
@@ -428,7 +434,8 @@ describe('ChatPanel', () => {
               lastActivityAt: 1_700_000_100_000,
               metadata: {
                 created: [],
-                updated: []
+                updated: [],
+                lockedNoteId: 3
               }
             }
           ]
@@ -448,6 +455,7 @@ describe('ChatPanel', () => {
     expect(wrapper.find('.message.assistant').text()).toContain('Here is a draft.');
     expect(wrapper.get('.tool-call-list').text()).toContain('createNote');
     expect(wrapper.vm.sessionId).toBe('session-2');
+    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
   });
 
   it('clears the transcript and rotates the session id', async () => {

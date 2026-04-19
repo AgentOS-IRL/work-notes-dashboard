@@ -3,6 +3,7 @@ import type {
   ChatMessage,
   ChatRequest,
   ChatNotesActivity,
+  ChatSessionMetadata,
   ChatResponse,
   ChatSessionDetailResponse,
   ChatSessionListResponse,
@@ -35,6 +36,22 @@ function createSessionId() {
   return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function createEmptySessionMetadata(): ChatSessionMetadata {
+  return {
+    created: [],
+    updated: [],
+    lockedNoteId: null
+  };
+}
+
+function normalizeSessionMetadata(metadata?: Partial<ChatSessionMetadata> | null): ChatSessionMetadata {
+  return {
+    created: [...(metadata?.created ?? [])],
+    updated: [...(metadata?.updated ?? [])],
+    lockedNoteId: metadata?.lockedNoteId ?? null
+  };
+}
+
 export function formatChatSessionLabel(session: Pick<ChatSessionSummary, 'name' | 'createdAt'>) {
   if (session.name) {
     return session.name;
@@ -62,6 +79,7 @@ export function useChat(options: {
   const errorMessage = ref('');
   const sessionId = ref(createSessionId());
   const selectedSessionId = ref('');
+  const activeSessionMetadata = ref<ChatSessionMetadata>(createEmptySessionMetadata());
   let nextMessageId = 1;
 
   const hasMessages = computed(() => messages.value.length > 0);
@@ -83,12 +101,18 @@ export function useChat(options: {
     }
   }
 
+  function updateActiveSessionMetadata(metadata?: Partial<ChatSessionMetadata> | null) {
+    activeSessionMetadata.value = normalizeSessionMetadata(metadata);
+  }
+
   async function loadSessions() {
     const data = await requestJson<ChatSessionListResponse>('/api/chat/sessions', {
       method: 'GET'
     });
 
     sessions.value = data.sessions;
+    const currentSession = data.sessions.find((session) => session.id === sessionId.value);
+    updateActiveSessionMetadata(currentSession?.metadata ?? null);
     syncSelectedSessionId();
   }
 
@@ -110,6 +134,7 @@ export function useChat(options: {
     messages.value = [];
     draft.value = '';
     errorMessage.value = '';
+    updateActiveSessionMetadata(null);
     nextMessageId = 1;
   }
 
@@ -138,6 +163,7 @@ export function useChat(options: {
 
       sessionId.value = response.session.id;
       selectedSessionId.value = response.session.id;
+      updateActiveSessionMetadata(response.session.metadata);
       messages.value = response.messages;
       draft.value = '';
       nextMessageId = response.messages.reduce((maxId, message) => Math.max(maxId, message.id), 0) + 1;
@@ -191,6 +217,10 @@ export function useChat(options: {
       nextMessageId += 1;
 
       messages.value = [...nextMessages, assistantMessage];
+      updateActiveSessionMetadata({
+        ...activeSessionMetadata.value,
+        lockedNoteId: response.lockedNoteId ?? (response.createdNoteIds.length > 0 ? response.createdNoteIds[0] : null)
+      });
 
       if (
         response.createdNoteIds.length > 0 ||
@@ -237,6 +267,8 @@ export function useChat(options: {
     isLoadingSession,
     errorMessage,
     hasMessages,
+    activeSessionMetadata,
+    isNoteDumpLocked: computed(() => activeSessionMetadata.value.lockedNoteId !== null),
     loadSession,
     loadSessions: refreshSessions,
     sendMessage,

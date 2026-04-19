@@ -23,8 +23,10 @@ test('chat session service persists turns and generates a session name after the
     async replyToConversation(request: {
       sessionId: string;
       messages: Array<{ role: string; content: string }>;
+      lockedNoteId?: number | null;
     }) {
       assert.equal(request.sessionId, 'session-abc');
+      assert.equal(request.lockedNoteId ?? null, null);
         return {
           assistantMessage: {
             role: 'assistant',
@@ -355,6 +357,7 @@ test('chat session service persists created and updated note metadata', async ()
           updatedNoteIds: [11, 12, 12],
           changedNoteIds: [10, 11, 12],
           openedNoteIds: [],
+          lockedNoteId: 10,
           notesChanged: true
         };
       }
@@ -390,11 +393,13 @@ test('chat session service persists created and updated note metadata', async ()
       updatedNoteIds: [11, 12, 12],
       changedNoteIds: [10, 11, 12],
       openedNoteIds: [],
+      lockedNoteId: 10,
       notesChanged: true
     });
     assert.deepEqual(repository.getSessionById('session-metadata')?.metadata, {
       created: [10, 11],
-      updated: [11, 12]
+      updated: [11, 12],
+      lockedNoteId: 10
     });
     assert.deepEqual(repository.getRecentMessages('session-metadata', 10).map((message) => ({
       role: message.role,
@@ -429,6 +434,120 @@ test('chat session service persists created and updated note metadata', async ()
         }
       }
     ]);
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('chat session service persists the created note lock and reuses it on later turns', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-service-lock-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new ChatSessionRepository(database);
+
+  let invocationCount = 0;
+  const service = createChatSessionService({
+    repository,
+    conversationService: {
+      async replyToConversation(request: {
+        sessionId: string;
+        messages: Array<{ role: string; content: string }>;
+        lockedNoteId?: number | null;
+      }) {
+        invocationCount += 1;
+
+        if (invocationCount === 1) {
+          assert.equal(request.sessionId, 'session-lock');
+          assert.equal(request.lockedNoteId ?? null, null);
+          return {
+            assistantMessage: {
+              role: 'assistant',
+              content: 'Created the note.'
+            },
+            toolCalls: [
+              {
+                id: 'call-1',
+                name: 'create_note',
+                args: {
+                  title: 'Weekly update',
+                  content: 'Draft content'
+                }
+              }
+            ],
+            createdNoteIds: [7],
+            updatedNoteIds: [7],
+            changedNoteIds: [7],
+            openedNoteIds: [],
+            lockedNoteId: 7,
+            notesChanged: true
+          };
+        }
+
+        assert.equal(request.sessionId, 'session-lock');
+        assert.equal(request.lockedNoteId, 7);
+        return {
+          assistantMessage: {
+            role: 'assistant',
+            content: 'Updated the locked note.'
+          },
+          toolCalls: [
+            {
+              id: 'call-2',
+              name: 'update_note',
+              args: {
+                title: 'Weekly update refined',
+                content: 'Refined content'
+              }
+            }
+          ],
+          createdNoteIds: [],
+          updatedNoteIds: [7],
+          changedNoteIds: [7],
+          openedNoteIds: [],
+          lockedNoteId: 7,
+          notesChanged: true
+        };
+      }
+    }
+  });
+
+  try {
+    const firstResponse = await service.replyToConversation({
+      sessionId: 'session-lock',
+      messages: [
+        {
+          role: 'user',
+          content: 'Create a weekly update note.'
+        }
+      ]
+    });
+
+    assert.deepEqual(firstResponse.lockedNoteId, 7);
+    assert.deepEqual(repository.getSessionById('session-lock')?.metadata, {
+      created: [7],
+      updated: [7],
+      lockedNoteId: 7
+    });
+
+    const secondResponse = await service.replyToConversation({
+      sessionId: 'session-lock',
+      messages: [
+        {
+          role: 'user',
+          content: 'Refine the weekly update note.'
+        }
+      ]
+    });
+
+    assert.deepEqual(secondResponse.lockedNoteId, 7);
+    assert.equal(invocationCount, 2);
+    assert.deepEqual(repository.getSessionById('session-lock')?.metadata, {
+      created: [7],
+      updated: [7],
+      lockedNoteId: 7
+    });
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });

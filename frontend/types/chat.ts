@@ -26,6 +26,7 @@ export interface ChatSessionSummary {
 export interface ChatSessionMetadata {
   created: number[];
   updated: number[];
+  lockedNoteId: number | null;
 }
 
 export type ChatToolCall = Record<string, unknown>;
@@ -54,6 +55,7 @@ export interface ChatResponse {
   updatedNoteIds: number[];
   changedNoteIds: number[];
   openedNoteIds: number[];
+  lockedNoteId?: number | null;
   notesChanged: boolean;
 }
 
