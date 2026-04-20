@@ -218,7 +218,7 @@ test('listNotesTool returns an empty list for an empty repository', async () => 
   }
 });
 
-test('locked update_note ignores caller ids and updates the captured note', async () => {
+test('update_note uses the caller id when no lock is active', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-locked-update-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -234,7 +234,48 @@ test('locked update_note ignores caller ids and updates the captured note', asyn
       title: 'Other note',
       content: 'Original other body'
     });
-    const tools = createNoteTools(repository, { sessionId: 'session-locked' }, { lockedNoteId: lockedNote.id });
+    const tools = createNoteTools(repository, { sessionId: 'session-locked' });
+
+    const updated = await tools.updateNoteTool.invoke({
+      id: otherNote.id,
+      title: 'Other note updated',
+      content: 'Updated other body'
+    });
+
+    assert.equal(updated.note.id, otherNote.id);
+    assert.deepEqual(updated.note.metadata, {
+      created: '',
+      updated: ['session-locked']
+    });
+    assert.equal(repository.getNoteById(lockedNote.id)?.title, 'Locked note');
+    assert.equal(repository.getNoteById(otherNote.id)?.title, 'Other note updated');
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('update_note targets the locked note when a lock is active', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-locked-update-target-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+
+  try {
+    const lockedNote = repository.createNote({
+      title: 'Locked note',
+      content: 'Original locked body'
+    });
+    const otherNote = repository.createNote({
+      title: 'Other note',
+      content: 'Original other body'
+    });
+    const tools = createNoteTools(
+      repository,
+      { sessionId: 'session-locked' },
+      { lockedNoteId: lockedNote.id }
+    );
 
     const updated = await tools.updateNoteTool.invoke({
       id: otherNote.id,

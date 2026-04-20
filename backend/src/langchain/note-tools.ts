@@ -27,17 +27,6 @@ const noteInputSchema = z.object({
   content: z.string().describe('The note content.')
 });
 
-function normalizeLockedNoteId(value: unknown) {
-  const numericValue =
-    typeof value === 'number'
-      ? value
-      : typeof value === 'string'
-        ? Number(value.trim())
-        : Number.NaN;
-
-  return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : null;
-}
-
 function asNote(note: Note | null) {
   if (!note) {
     throw new NotFoundError('Note was not found.');
@@ -69,7 +58,7 @@ export function createNoteTools(
   context: NoteToolContext = {},
   options: NoteToolOptions = {}
 ) {
-  const lockedNoteId = normalizeLockedNoteId(options.lockedNoteId);
+  const lockedNoteId = options.lockedNoteId ?? null;
   const createNoteTool = tool(
     async ({ title, content }) => {
       const note =
@@ -133,7 +122,7 @@ export function createNoteTools(
   );
 
   const updateNoteTool = tool(
-    async (input: { id?: number; title: string; content: string }) => {
+    async (input: { id: number; title: string; content: string }) => {
       const { id, title, content } = input;
       const targetNoteId = lockedNoteId ?? id;
       const note =
@@ -144,10 +133,8 @@ export function createNoteTools(
     },
     {
       name: 'update_note',
-      description: lockedNoteId
-        ? `Update the locked note ${lockedNoteId} in the SQLite-backed notes store.`
-        : 'Update an existing note in the SQLite-backed notes store.',
-      schema: lockedNoteId ? noteInputSchema : noteIdSchema.extend(noteInputSchema.shape)
+      description: 'Update an existing note in the SQLite-backed notes store.',
+      schema: noteIdSchema.extend(noteInputSchema.shape)
     }
   );
 
