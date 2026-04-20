@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import ToolCallList from '~/components/chat/ToolCallList.vue';
+import SessionRenameModal from '~/components/chat/SessionRenameModal.vue';
 import { useChat } from '~/composables/useChat';
 import type { ChatNotesActivity } from '~/types/chat';
 
@@ -32,6 +33,7 @@ const {
   isNoteDumpLocked,
   loadSession,
   loadSessions,
+  renameSession,
   sendMessage,
   resetChat
 } = useChat({
@@ -39,6 +41,19 @@ const {
     emit('notes-activity', activity);
   }
 });
+
+const isRenameModalOpen = ref(false);
+const isRenaming = ref(false);
+
+const selectedSession = computed(() =>
+  sessions.value.find((session) => session.id === selectedSessionId.value) ?? null
+);
+
+const canRenameSession = computed(
+  () => !isSending.value && !isLoadingSession.value && selectedSessionId.value.trim().length > 0
+);
+
+const selectedSessionName = computed(() => selectedSession.value?.name ?? '');
 
 function submitChatMessage() {
   void sendMessage({
@@ -61,6 +76,37 @@ function handleSessionChange() {
   }
 
   void loadSession(selectedSessionId.value);
+}
+
+function openRenameSessionModal() {
+  if (!canRenameSession.value) {
+    return;
+  }
+
+  errorMessage.value = '';
+  isRenameModalOpen.value = true;
+}
+
+async function handleRenameSession(name: string) {
+  if (!selectedSessionId.value) {
+    return;
+  }
+
+  isRenaming.value = true;
+
+  try {
+    await renameSession(selectedSessionId.value, name);
+    isRenameModalOpen.value = false;
+  } catch {
+    // Keep the dialog open so the user can correct the name or retry.
+  } finally {
+    isRenaming.value = false;
+  }
+}
+
+function handleRenameCancel() {
+  errorMessage.value = '';
+  isRenameModalOpen.value = false;
 }
 
 onMounted(() => {
@@ -107,6 +153,14 @@ onMounted(() => {
             </option>
           </select>
         </label>
+        <button
+          type="button"
+          class="rename-button"
+          :disabled="!canRenameSession"
+          @click="openRenameSessionModal"
+        >
+          Rename
+        </button>
         <button
           type="button"
           class="clear-button"
@@ -167,6 +221,15 @@ onMounted(() => {
 
       <p v-else class="collapsed-copy">Chat collapsed for browsing.</p>
     </div>
+
+    <SessionRenameModal
+      v-model="isRenameModalOpen"
+      :session-name="selectedSessionName"
+      :busy="isRenaming"
+      :error-message="errorMessage"
+      @submit="handleRenameSession"
+      @cancel="handleRenameCancel"
+    />
   </section>
 </template>
 
@@ -340,6 +403,36 @@ h2 {
   transition:
     transform 160ms ease,
     opacity 160ms ease;
+}
+
+.rename-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 999px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-strong) 72%, #000), var(--accent));
+  color: white;
+  font: 600 0.75rem/1 var(--mono-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+
+.rename-button:hover:not(:disabled),
+.rename-button:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+}
+
+.rename-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .clear-button:hover:not(:disabled),

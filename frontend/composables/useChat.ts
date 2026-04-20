@@ -7,6 +7,8 @@ import type {
   ChatResponse,
   ChatSessionDetailResponse,
   ChatSessionListResponse,
+  ChatSessionRenameRequest,
+  ChatSessionRenameResponse,
   ChatSessionSummary
 } from '~/types/chat';
 
@@ -158,6 +160,48 @@ export function useChat(options: {
     }
   }
 
+  async function renameSession(targetSessionId: string, name: string) {
+    if (isSending.value || isLoadingSession.value) {
+      return null;
+    }
+
+    const normalizedSessionId = targetSessionId.trim();
+    const normalizedName = name.trim();
+
+    if (!normalizedSessionId) {
+      throw new Error('A valid session id is required.');
+    }
+
+    if (!normalizedName) {
+      throw new Error('A valid session name is required.');
+    }
+
+    errorMessage.value = '';
+
+    try {
+      const response = await requestJson<ChatSessionRenameResponse>(
+        `/api/chat/sessions/${encodeURIComponent(normalizedSessionId)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: normalizedName
+          } satisfies ChatSessionRenameRequest)
+        }
+      );
+
+      sessions.value = sessions.value.map((session) =>
+        session.id === response.session.id ? response.session : session
+      );
+
+      await refreshSessions();
+
+      return response.session;
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : 'Failed to rename session.';
+      throw error;
+    }
+  }
+
   function resetChat() {
     if (isSending.value || isLoadingSession.value) {
       return;
@@ -306,6 +350,7 @@ export function useChat(options: {
     isNoteDumpLocked: computed(() => activeSessionMetadata.value.lockedNoteId !== null),
     loadSession,
     loadSessions: refreshSessions,
+    renameSession,
     sendMessage,
     resetChat
   };
