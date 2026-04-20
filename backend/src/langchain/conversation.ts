@@ -310,6 +310,9 @@ export function createConversationService(options: {
             for (const createdNoteId of collectCreatedNoteIds(toolName, result)) {
               createdNoteIds.add(createdNoteId);
               changedNoteIds.add(createdNoteId);
+              if (responseLockedNoteId == null) {
+                responseLockedNoteId = createdNoteId;
+              }
             }
             for (const updatedNoteId of collectUpdatedNoteIds(toolName, result)) {
               updatedNoteIds.add(updatedNoteId);
