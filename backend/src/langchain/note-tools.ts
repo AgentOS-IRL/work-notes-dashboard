@@ -14,6 +14,10 @@ export interface NoteToolContext {
   sessionId?: string;
 }
 
+export interface NoteToolOptions {
+  lockedNoteId?: number | null;
+}
+
 const noteIdSchema = z.object({
   id: z.number().int().positive().describe('The note id.')
 });
@@ -51,8 +55,10 @@ function createReadNoteTool(
 
 export function createNoteTools(
   repository: NoteToolRepository,
-  context: NoteToolContext = {}
+  context: NoteToolContext = {},
+  options: NoteToolOptions = {}
 ) {
+  const lockedNoteId = options.lockedNoteId ?? null;
   const createNoteTool = tool(
     async ({ title, content }) => {
       const note =
@@ -118,10 +124,11 @@ export function createNoteTools(
   const updateNoteTool = tool(
     async (input: { id: number; title: string; content: string }) => {
       const { id, title, content } = input;
+      const targetNoteId = lockedNoteId ?? id;
       const note =
         context.sessionId && repository.updateNoteForSession
-          ? repository.updateNoteForSession(id, context.sessionId, { title, content })
-          : repository.updateNote(id, { title, content });
+          ? repository.updateNoteForSession(targetNoteId, context.sessionId, { title, content })
+          : repository.updateNote(targetNoteId, { title, content });
       return { note };
     },
     {

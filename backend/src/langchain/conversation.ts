@@ -218,6 +218,8 @@ export function createConversationService(options: {
       let responseLockedNoteId = requestLockedNoteId;
       const tools = createNoteTools(options.repository, {
         sessionId: request.sessionId
+      }, {
+        lockedNoteId: requestLockedNoteId
       });
       const lockedNoteMessages =
         requestLockedNoteId == null
