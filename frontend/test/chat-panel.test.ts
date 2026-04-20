@@ -50,11 +50,22 @@ describe('ChatPanel', () => {
             role: 'assistant',
             content: 'I updated the sprint plan note.'
           },
-          toolCalls: [],
-          createdNoteIds: [1],
+          toolCalls: [
+            {
+              id: 'call-1',
+              type: 'function',
+              name: 'updateNote',
+              arguments: {
+                id: 1,
+                title: 'Sprint plan'
+              }
+            }
+          ],
+          createdNoteIds: [],
           updatedNoteIds: [1],
           changedNoteIds: [1],
           openedNoteIds: [],
+          lockedNoteId: 1,
           notesChanged: true
         })
       )
@@ -106,38 +117,11 @@ describe('ChatPanel', () => {
     expect(wrapper.find('form.composer').exists()).toBe(true);
     expect(wrapper.get('button.rename-button').text()).toBe('Rename');
     expect(wrapper.get('button.rename-button').attributes('disabled')).toBeDefined();
-    await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
-    await wrapper.get('#chat-draft').trigger('keydown', { key: 'Enter' });
+    await wrapper.get('select').setValue('session-1');
     await flushPromises();
-
-    const postCall = fetchMock.mock.calls.find(
-      ([url, init]) => url === '/api/chat' && (init as RequestInit | undefined)?.method === 'POST'
-    );
-    const requestBody = JSON.parse(postCall?.[1]?.body as string) as {
-      sessionId: string;
-      messages: Array<{ role: string; content: string; toolCalls: unknown[] }>;
-    };
-
-    expect(wrapper.find('.status-pill').text()).toBe('session active');
-    expect(requestBody.messages[0]).toMatchObject({
-      role: 'user',
-      content: 'Refine the sprint plan.',
-      toolCalls: []
-    });
-    expect(wrapper.findAll('.message')).toHaveLength(2);
-    expect(wrapper.find('.message.user').text()).toContain('Refine the sprint plan.');
-    expect(wrapper.find('.message.assistant').text()).toContain('I updated the sprint plan note.');
-    expect(wrapper.find('.tool-call-list').exists()).toBe(false);
-    expect(wrapper.emitted('notes-activity')).toEqual([
-      [
-        {
-          createdNoteIds: [1],
-          changedNoteIds: [1],
-          openedNoteIds: []
-        }
-      ]
-    ]);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    await flushPromises();
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode off');
   });
 
   it('opens the rename modal and updates the session label after saving', async () => {

@@ -298,7 +298,7 @@ export function useChat(options: {
       messages.value = [...nextMessages, assistantMessage];
       updateActiveSessionMetadata({
         ...activeSessionMetadata.value,
-        lockedNoteId: response.lockedNoteId ?? (response.createdNoteIds.length > 0 ? response.createdNoteIds[0] : null)
+        lockedNoteId: response.lockedNoteId ?? activeSessionMetadata.value.lockedNoteId ?? null
       });
 
       if (

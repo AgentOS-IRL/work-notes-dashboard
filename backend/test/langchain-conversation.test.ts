@@ -135,10 +135,9 @@ test('conversation service uses note tools to inspect and update notes', async (
 
     assert.deepEqual(bindToolsCalls, [
       ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note'],
-      ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note'],
       ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note']
     ]);
-    assert.equal(invocationMessages.length, 3);
+    assert.equal(invocationMessages.length, 2);
     assert.match(
       systemMessageContent(invocationMessages[0]),
       /You are a work notes assistant inside a split-view dashboard\./
@@ -146,7 +145,10 @@ test('conversation service uses note tools to inspect and update notes', async (
     assert.doesNotMatch(systemMessageContent(invocationMessages[0]), /may only use update_note/i);
     assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
     assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
-    assert.deepEqual(messageTypes(invocationMessages[2]), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
+    assert.deepEqual(response.assistantMessage, {
+      role: 'assistant',
+      content: 'Updated note 2.'
+    });
     assert.equal(response.notesChanged, true);
     assert.deepEqual(response.createdNoteIds, []);
     assert.deepEqual(response.updatedNoteIds, [2]);
@@ -154,7 +156,7 @@ test('conversation service uses note tools to inspect and update notes', async (
     assert.deepEqual(response.openedNoteIds, []);
     assert.deepEqual(response.assistantMessage, {
       role: 'assistant',
-      content: 'Updated the sprint note.'
+      content: 'Updated note 2.'
     });
     assert.deepEqual(response.toolCalls, [
       {
@@ -175,7 +177,7 @@ test('conversation service uses note tools to inspect and update notes', async (
         }
       }
     ]);
-    assert.equal(response.lockedNoteId, undefined);
+    assert.equal(response.lockedNoteId, 2);
     assert.deepEqual(repository.getNoteById(1), {
       id: 1,
       title: 'Sprint plan',
@@ -185,6 +187,78 @@ test('conversation service uses note tools to inspect and update notes', async (
         updated: []
       }
     });
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('conversation service leaves an unlocked create-only reply unlocked', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-create-only-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+
+  let invocationCount = 0;
+
+  const model = {
+    bindTools(tools: Array<{ name?: string }>) {
+      assert.deepEqual(tools.map((tool) => tool.name ?? ''), ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note']);
+
+      return {
+        async invoke(messages: Array<{ getType(): string; content?: unknown }>) {
+          invocationCount += 1;
+
+          if (invocationCount === 1) {
+            assert.deepEqual(messageTypes(messages), ['system', 'human']);
+
+            return new AIMessage({
+              content: 'I will create a note.',
+              tool_calls: [
+                {
+                  id: 'call-1',
+                  name: 'create_note',
+                  args: {
+                    title: 'Weekly update',
+                    content: 'Draft the weekly update.'
+                  }
+                }
+              ]
+            });
+          }
+
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+          return new AIMessage({
+            content: 'Created the weekly update.'
+          });
+        }
+      };
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+    const response = await service.replyToConversation({
+      sessionId: 'session-create-only',
+      messages: [
+        {
+          role: 'user',
+          content: 'Create a weekly update.'
+        }
+      ]
+    });
+
+    assert.equal(invocationCount, 1);
+    assert.deepEqual(response.assistantMessage, {
+      role: 'assistant',
+      content: 'Created note 1.'
+    });
+    assert.equal(response.lockedNoteId, undefined);
+    assert.deepEqual(response.createdNoteIds, [1]);
+    assert.deepEqual(response.updatedNoteIds, []);
+    assert.deepEqual(response.changedNoteIds, [1]);
+    assert.equal(response.notesChanged, true);
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -217,7 +291,7 @@ test('conversation service tracks created and updated note ids separately', asyn
             assert.deepEqual(messageTypes(messages), ['system', 'human']);
 
             return new AIMessage({
-              content: 'I will create a note.',
+              content: 'I will create and refine a note.',
               tool_calls: [
                 {
                   id: 'call-1',
@@ -225,6 +299,15 @@ test('conversation service tracks created and updated note ids separately', asyn
                   args: {
                     title: 'Weekly update',
                     content: 'Draft the weekly update.'
+                  }
+                },
+                {
+                  id: 'call-2',
+                  name: 'update_note',
+                  args: {
+                    id: 2,
+                    title: 'Sprint plan refined',
+                    content: 'Add the latest decisions.'
                   }
                 }
               ]
@@ -234,35 +317,16 @@ test('conversation service tracks created and updated note ids separately', asyn
           if (invocationCount === 2) {
             assert.match(
               systemMessageContent(messages),
-              /The conversation is locked to a single note, so treat that note as the only editable target\./
+              /You are a work notes assistant inside a split-view dashboard\./
             );
-            assert.match(systemMessageContent(messages), /You may only use update_note\./);
-            assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+            assert.doesNotMatch(systemMessageContent(messages), /may only use update_note/i);
+            assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool', 'tool']);
             return new AIMessage({
-              content: 'I will also update the sprint plan.',
-              tool_calls: [
-                {
-                  id: 'call-2',
-                  name: 'update_note',
-                  args: {
-                    id: 1,
-                    title: 'Sprint plan refined',
-                    content: 'Add the latest decisions.'
-                  }
-                }
-              ]
+              content: 'Created and updated notes.'
             });
           }
 
-          assert.match(
-            systemMessageContent(messages),
-            /The conversation is locked to a single note, so treat that note as the only editable target\./
-          );
-          assert.match(systemMessageContent(messages), /You may only use update_note\./);
-          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool', 'ai', 'tool']);
-          return new AIMessage({
-            content: 'Created and updated notes.'
-          });
+          throw new Error('Unexpected invocation count.');
         }
       };
     }
@@ -287,8 +351,7 @@ test('conversation service tracks created and updated note ids separately', asyn
     assert.equal(response.notesChanged, true);
     assert.deepEqual(bindToolsCalls, [
       ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note'],
-      ['update_note'],
-      ['update_note']
+      ['create_note', 'read_note', 'open_note', 'list_notes', 'update_note']
     ]);
     assert.deepEqual(repository.getNoteById(1)?.title, 'Sprint plan');
     assert.deepEqual(repository.getNoteById(2)?.title, 'Sprint plan refined');
@@ -367,16 +430,22 @@ test('conversation service starts in locked mode when the session is already loc
       ]
     });
 
-    assert.deepEqual(bindToolsCalls, [['update_note'], ['update_note']]);
-    assert.equal(invocationMessages.length, 2);
+    assert.deepEqual(bindToolsCalls, [['update_note']]);
+    assert.equal(invocationMessages.length, 1);
     assert.match(
       systemMessageContent(invocationMessages[0]),
       /The conversation is locked to a single note, so treat that note as the only editable target\./
     );
     assert.match(systemMessageContent(invocationMessages[0]), /You may only use update_note\./);
-    assert.match(systemMessageContent(invocationMessages[0]), /After each user message, update the locked note directly/i);
+    assert.match(
+      systemMessageContent(invocationMessages[0]),
+      /After each user message, reorganize and update the note\./i
+    );
     assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
-    assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
+    assert.deepEqual(response.assistantMessage, {
+      role: 'assistant',
+      content: 'Updated note 1.'
+    });
     assert.deepEqual(response.lockedNoteId, 1);
     assert.deepEqual(response.updatedNoteIds, [1]);
     assert.deepEqual(repository.getNoteById(1)?.title, 'Locked note refined');
@@ -463,7 +532,6 @@ test('conversation service tracks read_note reads separately from opened notes',
 
     assert.equal(invocationCount, 2);
     assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
-    assert.deepEqual(messageTypes(invocationMessages[1]), ['system', 'human', 'ai', 'tool']);
     assert.equal(response.notesChanged, false);
     assert.deepEqual(response.createdNoteIds, []);
     assert.deepEqual(response.updatedNoteIds, []);
@@ -550,7 +618,7 @@ test('conversation service tracks open_note calls as opened notes', async () => 
           );
 
           return new AIMessage({
-            content: 'Opened the note for the user.'
+            content: 'Opened note 1.'
           });
         }
       };
@@ -569,7 +637,7 @@ test('conversation service tracks open_note calls as opened notes', async () => 
       ]
     });
 
-    assert.equal(invocationCount, 2);
+    assert.equal(invocationCount, 1);
     assert.equal(response.notesChanged, false);
     assert.deepEqual(response.createdNoteIds, []);
     assert.deepEqual(response.updatedNoteIds, []);
@@ -577,7 +645,7 @@ test('conversation service tracks open_note calls as opened notes', async () => 
     assert.deepEqual(response.openedNoteIds, [1]);
     assert.deepEqual(response.assistantMessage, {
       role: 'assistant',
-      content: 'Opened the note for the user.'
+      content: 'Opened note 1.'
     });
     assert.deepEqual(response.toolCalls, [
       {
@@ -649,7 +717,7 @@ test('conversation service synthesizes a reply when open_note returns no assista
       ]
     });
 
-    assert.equal(invocationCount, 2);
+    assert.equal(invocationCount, 1);
     assert.equal(response.notesChanged, false);
     assert.deepEqual(response.openedNoteIds, [1]);
     assert.deepEqual(response.assistantMessage, {

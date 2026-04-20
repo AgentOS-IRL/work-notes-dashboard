@@ -328,7 +328,7 @@ test('chat session service keeps the chat response working when naming fails', a
   }
 });
 
-test('chat session service persists created and updated note metadata', async () => {
+test('chat session service persists unlocked create-only metadata without locking', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-service-metadata-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -342,7 +342,7 @@ test('chat session service persists created and updated note metadata', async ()
         return {
           assistantMessage: {
             role: 'assistant',
-            content: 'Created and updated notes.'
+            content: 'Created notes.'
           },
           toolCalls: [
             {
@@ -354,10 +354,9 @@ test('chat session service persists created and updated note metadata', async ()
             }
           ],
           createdNoteIds: [10, 11, 10],
-          updatedNoteIds: [11, 12, 12],
-          changedNoteIds: [10, 11, 12],
+          updatedNoteIds: [],
+          changedNoteIds: [10, 11],
           openedNoteIds: [],
-          lockedNoteId: 10,
           notesChanged: true
         };
       }
@@ -378,7 +377,7 @@ test('chat session service persists created and updated note metadata', async ()
     assert.deepEqual(response, {
       assistantMessage: {
         role: 'assistant',
-        content: 'Created and updated notes.'
+        content: 'Created notes.'
       },
       toolCalls: [
         {
@@ -390,16 +389,15 @@ test('chat session service persists created and updated note metadata', async ()
         }
       ],
       createdNoteIds: [10, 11, 10],
-      updatedNoteIds: [11, 12, 12],
-      changedNoteIds: [10, 11, 12],
+      updatedNoteIds: [],
+      changedNoteIds: [10, 11],
       openedNoteIds: [],
-      lockedNoteId: 10,
       notesChanged: true
     });
     assert.deepEqual(repository.getSessionById('session-metadata')?.metadata, {
       created: [10, 11],
-      updated: [11, 12],
-      lockedNoteId: 10
+      updated: [],
+      lockedNoteId: null
     });
     assert.deepEqual(repository.getRecentMessages('session-metadata', 10).map((message) => ({
       role: message.role,
@@ -413,7 +411,7 @@ test('chat session service persists created and updated note metadata', async ()
       },
       {
         role: 'assistant',
-        content: 'Created and updated notes.',
+        content: 'Created notes.',
         toolCalls: [
           {
             id: 'call-1',
@@ -440,7 +438,7 @@ test('chat session service persists created and updated note metadata', async ()
   }
 });
 
-test('chat session service persists the created note lock and reuses it on later turns', async () => {
+test('chat session service persists the first update lock and reuses it on later turns', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-chat-service-lock-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -464,19 +462,20 @@ test('chat session service persists the created note lock and reuses it on later
           return {
             assistantMessage: {
               role: 'assistant',
-              content: 'Created the note.'
+              content: 'Updated the note.'
             },
             toolCalls: [
               {
                 id: 'call-1',
-                name: 'create_note',
+                name: 'update_note',
                 args: {
+                  id: 7,
                   title: 'Weekly update',
                   content: 'Draft content'
                 }
               }
             ],
-            createdNoteIds: [7],
+            createdNoteIds: [],
             updatedNoteIds: [7],
             changedNoteIds: [7],
             openedNoteIds: [],
@@ -526,7 +525,7 @@ test('chat session service persists the created note lock and reuses it on later
 
     assert.deepEqual(firstResponse.lockedNoteId, 7);
     assert.deepEqual(repository.getSessionById('session-lock')?.metadata, {
-      created: [7],
+      created: [],
       updated: [7],
       lockedNoteId: 7
     });
@@ -544,7 +543,7 @@ test('chat session service persists the created note lock and reuses it on later
     assert.deepEqual(secondResponse.lockedNoteId, 7);
     assert.equal(invocationCount, 2);
     assert.deepEqual(repository.getSessionById('session-lock')?.metadata, {
-      created: [7],
+      created: [],
       updated: [7],
       lockedNoteId: 7
     });

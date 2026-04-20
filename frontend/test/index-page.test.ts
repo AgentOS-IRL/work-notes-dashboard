@@ -15,6 +15,7 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 describe('index page', () => {
   it('renders the workspace shell, explores notes, deletes a note, and loads a new chat-created note', async () => {
     let notesListCount = 0;
+    let sessionLocked = false;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       const method = init?.method ?? 'GET';
@@ -30,7 +31,7 @@ describe('index page', () => {
               metadata: {
                 created: [],
                 updated: [],
-                lockedNoteId: 1
+                lockedNoteId: sessionLocked ? 1 : null
               }
             }
           ]
@@ -47,7 +48,7 @@ describe('index page', () => {
             metadata: {
               created: [],
               updated: [],
-              lockedNoteId: 1
+              lockedNoteId: null
             }
           },
           messages: []
@@ -118,31 +119,32 @@ describe('index page', () => {
 
         expect(requestBody.messages[0]).toMatchObject({
           role: 'user',
-          content:
-            'Please update, reformat, and organize the note with the new information.\n\nRefine the sprint plan.',
+          content: 'Refine the sprint plan.',
           toolCalls: []
         });
 
+        sessionLocked = true;
         return jsonResponse({
           assistantMessage: {
             role: 'assistant',
-            content: 'I created a new weekly update note.'
+            content: 'I updated the sprint plan note.'
           },
           toolCalls: [
             {
               id: 'call-1',
               type: 'function',
-              name: 'createNote',
+              name: 'updateNote',
               arguments: {
-                title: 'Weekly update',
-                content: 'Draft content'
+                id: 1,
+                title: 'Sprint plan'
               }
             }
           ],
-          createdNoteIds: [3],
-          updatedNoteIds: [3],
-          changedNoteIds: [3],
+          createdNoteIds: [],
+          updatedNoteIds: [1],
+          changedNoteIds: [1],
           openedNoteIds: [],
+          lockedNoteId: 1,
           notesChanged: true
         });
       }
@@ -172,7 +174,7 @@ describe('index page', () => {
     await wrapper.get('select').setValue('session-1');
     await flushPromises();
 
-    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
+    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode off');
 
     const noteButtons = wrapper.findAll('.tree-item');
     await noteButtons[1].trigger('click');
@@ -195,18 +197,20 @@ describe('index page', () => {
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('form.composer').trigger('submit');
     await flushPromises();
+    await flushPromises();
+    await wrapper.vm.$nextTick();
 
-    expect(wrapper.text()).toContain('I created a new weekly update note.');
-    expect(wrapper.text()).toContain('createNote');
-    expect(wrapper.text()).toContain('Weekly update');
+    expect(wrapper.text()).toContain('I updated the sprint plan note.');
+    expect(wrapper.text()).toContain('updateNote');
+    expect(wrapper.text()).toContain('Sprint plan');
     expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
 
     await wrapper.get('button.toggle-button').trigger('click');
     await flushPromises();
 
     expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
-    expect(wrapper.find('.note-meta h3').text()).toBe('Weekly update');
-    expect(wrapper.find('.markdown-body h1').text()).toBe('Weekly update');
+    expect(wrapper.find('.note-meta h3').text()).toBe('Sprint plan refined');
+    expect(wrapper.find('.markdown-body h1').text()).toBe('Sprint plan');
     expect(fetchMock).toHaveBeenCalledTimes(9);
   });
 

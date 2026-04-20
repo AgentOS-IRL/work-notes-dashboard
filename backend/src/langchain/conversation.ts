@@ -3,15 +3,6 @@ import type { Note } from '../notes-repository';
 import { createNoteTools } from './note-tools';
 import { createDefaultChatModel } from './index';
 import type { NotesRepository } from '../notes-repository';
-import { CallbackHandler } from "@langfuse/langchain";
-import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
-
-// Initialize the Langfuse CallbackHandler
-const langfuseHandler = new CallbackHandler({
-  sessionId: "user-session-123",
-  userId: "user-abc",
-  tags: ["langchain-test"],
-});
 
 export type ChatRole = 'user' | 'assistant';
 export type ChatToolCall = Record<string, unknown>;
@@ -212,13 +203,21 @@ export function createConversationService(options: {
 
   return {
     async replyToConversation(request: ChatRequest): Promise<ChatResponse> {
-      let lockedNoteId = request.lockedNoteId ?? null;
-      let tools = createNoteTools(options.repository, {
-        sessionId: request.sessionId
-      }, {
-        lockedNoteId
-      });
-      const baseMessages = [new SystemMessage(buildSystemInstruction(lockedNoteId)), ...toBaseMessages(request.messages)];
+      const requestLockedNoteId = request.lockedNoteId ?? null;
+      let responseLockedNoteId = requestLockedNoteId;
+      let tools = createNoteTools(
+        options.repository,
+        {
+          sessionId: request.sessionId
+        },
+        {
+          lockedNoteId: requestLockedNoteId
+        }
+      );
+      const baseMessages = [
+        new SystemMessage(buildSystemInstruction(requestLockedNoteId)),
+        ...toBaseMessages(request.messages)
+      ];
       const createdNoteIds = new Set<number>();
       const updatedNoteIds = new Set<number>();
       const changedNoteIds = new Set<number>();
@@ -228,9 +227,9 @@ export function createConversationService(options: {
       let allowEmptyReplyForOpenNote = false;
 
       for (let loopIndex = 0; loopIndex < MAX_TOOL_LOOPS; loopIndex += 1) {
-        messages = refreshSystemMessage(messages, lockedNoteId);
+        messages = refreshSystemMessage(messages, requestLockedNoteId);
         const modelWithTools = model.bindTools(
-          lockedNoteId
+          requestLockedNoteId
             ? [tools.updateNoteTool]
             : [
               tools.createNoteTool,
@@ -273,17 +272,17 @@ export function createConversationService(options: {
             notesChanged: createdNoteIds.size > 0 || updatedNoteIds.size > 0 || changedNoteIds.size > 0
               ? true
               : false,
-            ...(lockedNoteId == null ? {} : { lockedNoteId })
+            ...(responseLockedNoteId == null ? {} : { lockedNoteId: responseLockedNoteId })
           };
         }
 
         for (const toolCall of assistantToolCalls) {
           const toolName = toolCall.name;
-          if (lockedNoteId && toolName !== 'update_note') {
+          if (requestLockedNoteId && toolName !== 'update_note') {
             messages = [
               ...messages,
               new ToolMessage(
-                'Tool access is locked to update_note after a note has been created in this session.',
+                'Tool access is locked to update_note after this session has been locked.',
                 toolCall.id ?? `${toolName}-${loopIndex}`,
                 toolName
               )
@@ -308,16 +307,13 @@ export function createConversationService(options: {
             for (const createdNoteId of collectCreatedNoteIds(toolName, result)) {
               createdNoteIds.add(createdNoteId);
               changedNoteIds.add(createdNoteId);
-              lockedNoteId = createdNoteId;
-              tools = createNoteTools(options.repository, {
-                sessionId: request.sessionId
-              }, {
-                lockedNoteId
-              });
             }
             for (const updatedNoteId of collectUpdatedNoteIds(toolName, result)) {
               updatedNoteIds.add(updatedNoteId);
               changedNoteIds.add(updatedNoteId);
+              if (responseLockedNoteId == null) {
+                responseLockedNoteId = updatedNoteId;
+              }
             }
             for (const openedNoteId of collectOpenedNoteIds(toolName, result)) {
               openedNoteIds.add(openedNoteId);
@@ -375,7 +371,7 @@ export function createConversationService(options: {
             notesChanged: createdNoteIds.size > 0 || updatedNoteIds.size > 0 || changedNoteIds.size > 0
               ? true
               : false,
-            ...(lockedNoteId == null ? {} : { lockedNoteId })
+            ...(responseLockedNoteId == null ? {} : { lockedNoteId: responseLockedNoteId })
           };
         }
       }
