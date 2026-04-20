@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { NOTE_DUMP_PREFACE, formatChatSessionLabel, useChat } from '~/composables/useChat';
 
@@ -567,6 +568,7 @@ describe('useChat', () => {
 
     chat.draft.value = 'Refine the sprint plan.';
     await chat.sendMessage();
+    await flushPromises();
 
     expect(chat.isNoteDumpLocked.value).toBe(false);
     expect(chat.activeSessionMetadata.value.lockedNoteId).toBe(null);
@@ -666,7 +668,7 @@ describe('useChat', () => {
           },
           toolCalls: [],
           createdNoteIds: [9],
-          updatedNoteIds: [9],
+          updatedNoteIds: [],
           changedNoteIds: [],
           openedNoteIds: [],
           notesChanged: true
@@ -689,6 +691,76 @@ describe('useChat', () => {
       changedNoteIds: [],
       openedNoteIds: []
     });
+    expect(chat.isNoteDumpLocked.value).toBe(false);
+    expect(chat.activeSessionMetadata.value.lockedNoteId).toBe(null);
+  });
+
+  it('locks the active session after an unlocked update response', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Weekly update',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          assistantMessage: {
+            role: 'assistant',
+            content: 'I updated the sprint plan.'
+          },
+          toolCalls: [],
+          createdNoteIds: [],
+          updatedNoteIds: [2],
+          changedNoteIds: [2],
+          openedNoteIds: [],
+          lockedNoteId: 2,
+          notesChanged: true
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Weekly update',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [2],
+                lockedNoteId: 2
+              }
+            }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat();
+    chat.sessionId.value = 'session-1';
+
+    await chat.loadSessions();
+    expect(chat.isNoteDumpLocked.value).toBe(false);
+
+    chat.draft.value = 'Refine the sprint plan.';
+    await chat.sendMessage();
+
+    expect(chat.isNoteDumpLocked.value).toBe(true);
+    expect(chat.activeSessionMetadata.value.lockedNoteId).toBe(2);
   });
 
   it('resets the transcript and session id when cleared', async () => {

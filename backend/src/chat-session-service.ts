@@ -55,8 +55,7 @@ export function createChatSessionService(options: {
       const session = options.repository.updateSessionMetadata(persistedTurn.session.id, {
         created: response.createdNoteIds,
         updated: response.updatedNoteIds,
-        lockedNoteId:
-          response.lockedNoteId ?? response.createdNoteIds[0] ?? existingSession?.metadata.lockedNoteId ?? null
+        lockedNoteId: response.lockedNoteId ?? existingSession?.metadata.lockedNoteId ?? null
       });
 
       const userTurnCount = options.repository.countUserTurns(session.id);
