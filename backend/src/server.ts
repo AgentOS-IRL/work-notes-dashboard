@@ -7,10 +7,12 @@ import { createConversationService } from './langchain';
 import { createChatRouter } from './routes/chat';
 import { createChatSessionsRouter } from './routes/chat-sessions';
 import { createNotesRouter } from './routes/notes';
+import { createTasksRouter } from './routes/tasks';
 import { initializeSqliteDatabase, openSqliteDatabase } from './db/sqlite';
 import { ChatSessionRepository } from './chat-session-repository';
 import { createChatSessionService } from './chat-session-service';
 import { NotesRepository } from './notes-repository';
+import { TasksRepository } from './tasks-repository';
 import { resolveDatabasePath } from './config';
 import type { ConversationService } from './langchain';
 import type { ChatSessionService } from './chat-session-service';
@@ -32,6 +34,7 @@ export function createServer(options: {
   const database = openSqliteDatabase(databasePath);
   initializeSqliteDatabase(database);
   const notesRepository = new NotesRepository(database);
+  const tasksRepository = new TasksRepository(database);
   const chatSessionRepository = new ChatSessionRepository(
     database,
     options.chatSessionRepositoryOptions
@@ -74,6 +77,7 @@ export function createServer(options: {
   app.use('/api/chat/sessions', createChatSessionsRouter(chatSessionRepository));
   app.use('/api/chat', createChatRouter(getChatSessionService));
   app.use('/api/notes', createNotesRouter(notesRepository));
+  app.use('/api/tasks', createTasksRouter(tasksRepository));
   configureFrontendStatic(app, frontendBasePath, frontendDistPath);
 
   return {
