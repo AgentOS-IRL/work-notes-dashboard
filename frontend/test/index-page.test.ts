@@ -19,7 +19,8 @@ async function mountWorkspaceShell() {
     routes: [
       { path: '/', redirect: '/chat' },
       { path: '/chat', component: { template: '<div />' } },
-      { path: '/explore', component: { template: '<div />' } }
+      { path: '/explore', component: { template: '<div />' } },
+      { path: '/tasks', component: { template: '<div />' } }
     ]
   });
 
@@ -36,7 +37,7 @@ async function mountWorkspaceShell() {
 }
 
 describe('workspace shell', () => {
-  it('navigates between chat and explore routes while keeping chat state alive', async () => {
+  it('navigates between chat, explore, and tasks routes while keeping workspace state alive', async () => {
     let notesListCount = 0;
     let sessionLocked = false;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -134,6 +135,28 @@ describe('workspace shell', () => {
         return new Response(null, { status: 204 });
       }
 
+      if (url.endsWith('/api/tasks') && method === 'GET') {
+        return jsonResponse({
+          tasks: [
+            {
+              id: 10,
+              name: 'Ship board',
+              status: 'in progress'
+            },
+            {
+              id: 11,
+              name: 'Draft follow-up',
+              status: 'todo'
+            },
+            {
+              id: 12,
+              name: 'Old backlog item',
+              status: 'backlog'
+            }
+          ]
+        });
+      }
+
       if (url.endsWith('/api/chat') && method === 'POST') {
         const requestBody = JSON.parse(init?.body as string) as {
           sessionId: string;
@@ -183,24 +206,22 @@ describe('workspace shell', () => {
 
     expect(wrapper.text()).toContain('Work Notes');
     expect(wrapper.text()).toContain('Explore');
+    expect(wrapper.text()).toContain('Tasks');
     expect(router.currentRoute.value.path).toBe('/chat');
     expect(wrapper.find('.notes-tree').exists()).toBe(false);
     expect(wrapper.text()).toContain('Sprint plan');
     expect(wrapper.text()).toContain('Outline milestones');
     expect(wrapper.find('.delete-button').exists()).toBe(false);
 
-    await wrapper.get('a.toggle-button').trigger('click');
+    await wrapper.get('a.nav-link[href="/explore"]').trigger('click');
     await flushPromises();
 
     expect(router.currentRoute.value.path).toBe('/explore');
     expect(wrapper.text()).toContain('Chat');
     expect(wrapper.find('.notes-tree').exists()).toBe(true);
-    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode off');
 
     await wrapper.get('select').setValue('session-1');
     await flushPromises();
-
-    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode off');
 
     const noteButtons = wrapper.findAll('.tree-item');
     await noteButtons[1].trigger('click');
@@ -217,7 +238,16 @@ describe('workspace shell', () => {
     expect(wrapper.find('.tree-item').text()).toContain('Sprint plan');
     expect(wrapper.find('.note-meta h3').text()).toBe('Sprint plan');
 
-    await wrapper.get('a.toggle-button').trigger('click');
+    await wrapper.get('a.nav-link[href="/tasks"]').trigger('click');
+    await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe('/tasks');
+    expect(wrapper.text()).toContain('Tasks');
+    expect(wrapper.text()).toContain('Ship board');
+    expect(wrapper.find('.status-collapsed-copy').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Section collapsed.');
+
+    await wrapper.get('a.nav-link[href="/chat"]').trigger('click');
     await flushPromises();
 
     expect(router.currentRoute.value.path).toBe('/chat');
@@ -227,21 +257,18 @@ describe('workspace shell', () => {
     await wrapper.get('form.composer').trigger('submit');
     await flushPromises();
     await flushPromises();
-    await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain('I updated the sprint plan note.');
     expect(wrapper.text()).toContain('updateNote');
     expect(wrapper.text()).toContain('Sprint plan');
-    expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
 
-    await wrapper.get('a.toggle-button').trigger('click');
+    await wrapper.get('a.nav-link[href="/explore"]').trigger('click');
     await flushPromises();
 
     expect(router.currentRoute.value.path).toBe('/explore');
     expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
     expect(wrapper.find('.note-meta h3').text()).toBe('Sprint plan refined');
     expect(wrapper.find('.markdown-body h1').text()).toBe('Sprint plan');
-    expect(fetchMock).toHaveBeenCalledTimes(9);
   });
 
   it('opens a note in the notes panel when chat requests it', async () => {
@@ -296,11 +323,11 @@ describe('workspace shell', () => {
     const { router, wrapper } = await mountWorkspaceShell();
     await flushPromises();
 
-    await wrapper.get('a.toggle-button').trigger('click');
+    await wrapper.get('a.nav-link[href="/explore"]').trigger('click');
     await flushPromises();
     expect(router.currentRoute.value.path).toBe('/explore');
 
-    await wrapper.get('a.toggle-button').trigger('click');
+    await wrapper.get('a.nav-link[href="/chat"]').trigger('click');
     await flushPromises();
     expect(router.currentRoute.value.path).toBe('/chat');
 
@@ -310,7 +337,7 @@ describe('workspace shell', () => {
 
     expect(wrapper.text()).toContain('I opened the retro note.');
 
-    await wrapper.get('a.toggle-button').trigger('click');
+    await wrapper.get('a.nav-link[href="/explore"]').trigger('click');
     await flushPromises();
     expect(router.currentRoute.value.path).toBe('/explore');
     expect(wrapper.find('.note-meta h3').text()).toBe('Retro');

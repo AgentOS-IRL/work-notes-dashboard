@@ -1,44 +1,72 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import ChatPanel from '~/components/chat/ChatPanel.vue';
 import NotesPanel from '~/components/notes/NotesPanel.vue';
 import NotesTree from '~/components/notes/NotesTree.vue';
+import TaskBoard from '~/components/tasks/TaskBoard.vue';
 import { useNotes } from '~/composables/useNotes';
+import { useTasks } from '~/composables/useTasks';
 import type { ChatNotesActivity } from '~/types/chat';
+import type { Task } from '~/types/task';
 
 const route = useRoute();
 const {
   noteTree,
   selectedNoteId,
   selectedNote,
-  loading,
-  errorMessage,
+  loading: notesLoading,
+  errorMessage: notesErrorMessage,
   loadNotes,
   selectNoteById,
   deleteNote,
-  saving
+  saving: notesSaving
 } = useNotes();
+const {
+  groupedTasks,
+  collapseState,
+  loading: tasksLoading,
+  saving: tasksSaving,
+  errorMessage: tasksErrorMessage,
+  statusMessage: tasksStatusMessage,
+  isEditorOpen,
+  draftName,
+  draftStatus,
+  tasks,
+  selectedTaskId,
+  loadTasks,
+  openCreateTask,
+  openTask,
+  closeTaskEditor,
+  saveTask,
+  completeTask,
+  toggleStatusSection
+} = useTasks();
 
-const currentWorkspaceMode = computed<'chat-first' | 'explore-notes'>(() => {
+const hasLoadedNotes = ref(false);
+
+const currentWorkspaceMode = computed<'chat-first' | 'explore-notes' | 'tasks'>(() => {
   const path = route.path.replace(/\/+$/, '') || '/';
 
-  return path === '/explore' ? 'explore-notes' : 'chat-first';
+  if (path === '/explore') {
+    return 'explore-notes';
+  }
+
+  if (path === '/tasks') {
+    return 'tasks';
+  }
+
+  return 'chat-first';
 });
 
-const workspaceToggleLabel = computed(() =>
-  currentWorkspaceMode.value === 'chat-first' ? 'Explore' : 'Chat'
-);
-
-const workspaceToggleTarget = computed(() =>
-  currentWorkspaceMode.value === 'chat-first' ? '/explore' : '/chat'
-);
+const workspaceLinks = [
+  { label: 'Chat', path: '/chat' },
+  { label: 'Explore', path: '/explore' },
+  { label: 'Tasks', path: '/tasks' }
+];
 
 const isExploreMode = computed(() => currentWorkspaceMode.value === 'explore-notes');
-
-onMounted(() => {
-  void loadNotes();
-});
+const isTasksMode = computed(() => currentWorkspaceMode.value === 'tasks');
 
 function handleNotesActivity(activity: ChatNotesActivity) {
   void loadNotes({
@@ -59,6 +87,51 @@ async function handleDeleteNote() {
 
   await deleteNote(note.id);
 }
+
+function handleCreateTask() {
+  openCreateTask();
+}
+
+function handleSelectTask(task: Task) {
+  openTask(task);
+}
+
+function handleCloseTaskEditor() {
+  closeTaskEditor();
+}
+
+function handleSaveTask() {
+  void saveTask();
+}
+
+function handleCompleteTask() {
+  void completeTask();
+}
+
+watch(
+  currentWorkspaceMode,
+  (mode) => {
+    if (mode === 'tasks') {
+      closeTaskEditor();
+      void loadTasks();
+      return;
+    }
+
+    closeTaskEditor();
+
+    if (!hasLoadedNotes.value) {
+      void loadNotes();
+      hasLoadedNotes.value = true;
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  if (currentWorkspaceMode.value !== 'tasks') {
+    hasLoadedNotes.value = true;
+  }
+});
 </script>
 
 <template>
@@ -69,17 +142,26 @@ async function handleDeleteNote() {
       <header class="workspace-bar">
         <div class="copy">
           <h1>Work Notes</h1>
+          <p class="subtitle">
+            Notes, chat, and tasks in one workspace.
+          </p>
         </div>
 
-        <div class="toolbar" aria-label="Workspace controls">
-          <RouterLink class="toggle-button" :to="workspaceToggleTarget">
-            {{ workspaceToggleLabel }}
+        <nav class="toolbar" aria-label="Workspace navigation">
+          <RouterLink
+            v-for="link in workspaceLinks"
+            :key="link.path"
+            class="nav-link"
+            :class="{ active: route.path.replace(/\/+$/, '') === link.path }"
+            :to="link.path"
+          >
+            {{ link.label }}
           </RouterLink>
-        </div>
+        </nav>
       </header>
 
-      <div class="workspace">
-        <aside class="left-rail">
+      <div class="workspace" :class="{ tasks: isTasksMode }">
+        <aside v-show="!isTasksMode" class="left-rail">
           <ChatPanel v-show="currentWorkspaceMode === 'chat-first'" @notes-activity="handleNotesActivity" />
 
           <NotesTree
@@ -91,12 +173,34 @@ async function handleDeleteNote() {
         </aside>
 
         <NotesPanel
+          v-if="!isTasksMode"
           :note="selectedNote"
-          :loading="loading"
-          :error-message="errorMessage"
-          :mutating="saving"
+          :loading="notesLoading"
+          :error-message="notesErrorMessage"
+          :mutating="notesSaving"
           :can-delete="isExploreMode"
           @delete="handleDeleteNote"
+        />
+
+        <TaskBoard
+          v-else
+          :tasks="tasks"
+          :grouped-tasks="groupedTasks"
+          :collapse-state="collapseState"
+          :loading="tasksLoading"
+          :saving="tasksSaving"
+          :error-message="tasksErrorMessage"
+          :status-message="tasksStatusMessage"
+          v-model:isEditorOpen="isEditorOpen"
+          v-model:draftName="draftName"
+          v-model:draftStatus="draftStatus"
+          :is-editing="selectedTaskId !== null"
+          @create="handleCreateTask"
+          @select="handleSelectTask"
+          @toggle="toggleStatusSection"
+          @save="handleSaveTask"
+          @complete="handleCompleteTask"
+          @close="handleCloseTaskEditor"
         />
       </div>
     </section>
@@ -140,7 +244,7 @@ async function handleDeleteNote() {
 
 .copy {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 h1 {
@@ -151,6 +255,12 @@ h1 {
   letter-spacing: -0.07em;
 }
 
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+  max-width: 42ch;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -159,25 +269,32 @@ h1 {
   gap: 10px;
 }
 
-.toggle-button {
+.nav-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
   border-radius: 999px;
   padding: 11px 16px;
-  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
-  color: white;
-  cursor: pointer;
+  background: color-mix(in srgb, var(--panel-muted) 84%, transparent);
+  color: var(--text-strong);
   text-decoration: none;
   transition:
     transform 160ms ease,
-    opacity 160ms ease;
+    opacity 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
 }
 
-.toggle-button:hover,
-.toggle-button:focus-visible {
+.nav-link:hover,
+.nav-link:focus-visible {
   transform: translateY(-1px);
+}
+
+.nav-link.active {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+  color: white;
 }
 
 .workspace {
@@ -185,6 +302,10 @@ h1 {
   grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr);
   gap: 18px;
   align-items: start;
+}
+
+.workspace.tasks {
+  grid-template-columns: 1fr;
 }
 
 .left-rail {
