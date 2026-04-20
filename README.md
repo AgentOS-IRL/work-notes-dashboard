@@ -4,6 +4,7 @@ Minimal monorepo with:
 - a Nuxt frontend in `frontend/`
 - an Express backend in `backend/`
 - static frontend serving from the backend
+- route-driven workspace modes for chat and note exploration
 - LangChain Converse-powered chat that can inspect and update notes
 - SQLite persistence for notes
 - file-based SQLite migrations that run automatically on backend startup
@@ -11,6 +12,7 @@ Minimal monorepo with:
 ## Layout
 
 - `frontend/` generates a static site into `.output/public`
+- `frontend` routes are served as SPA paths, so direct loads like `/chat` and `/explore` resolve through the backend fallback
 - `backend/` serves that generated output, exposes `/api/notes` and `/api/chat`, and falls back to `index.html`
 - `backend/data/notes.sqlite` is the default SQLite file path
 - `backend/src/db/migrations/` stores sequential `.sql` migration files
@@ -19,10 +21,11 @@ Minimal monorepo with:
 ## Commands
 
 - `npm install`
-- `npm run build:frontend`
-- `npm run build:backend`
-- `npm run build`
-- `npm run start`
+- `npm run build:frontend` generates the frontend static output
+- `npm run build:backend` compiles the backend and copies migrations into `dist`
+- `npm run build` runs both build steps
+- `npm run dev` builds the frontend once, then starts the backend dev server that serves the generated frontend dist
+- `npm run start` builds both apps and runs the backend server
 - `npm run test`
 
 ## Environment
@@ -71,6 +74,16 @@ It returns the assistant reply plus note-change metadata:
 ```
 
 The backend uses Bedrock Converse through LangChain and can call note tools while composing a reply. When the model changes notes, the frontend refreshes the notes workspace.
+
+## Frontend Routes
+
+The workspace mode is route-based in the frontend:
+
+- `/chat` shows the chat-first view
+- `/explore` shows the note-browsing view
+- the top workspace button navigates between those routes
+
+The backend serves the generated Nuxt output as a single-page app, so those routes work on direct page loads as well as client-side navigation.
 
 ## Notes API
 

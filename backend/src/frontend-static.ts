@@ -74,7 +74,13 @@ export function configureFrontendStatic(
   const mountBase = normalizeBasePath(basePath);
   const router = express.Router();
 
-  router.use(express.static(frontendDistPath, { index: false, dotfiles: 'allow' }));
+  router.use(
+    express.static(frontendDistPath, {
+      index: false,
+      dotfiles: 'allow',
+      redirect: false
+    })
+  );
   const serveSPAIndexIfNeeded = (req: express.Request, res: Response) => {
     if (path.extname(req.path)) {
       res.sendStatus(404);

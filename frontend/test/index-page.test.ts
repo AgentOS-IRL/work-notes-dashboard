@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
+import { createMemoryHistory, createRouter } from 'vue-router';
 import { describe, expect, it, vi } from 'vitest';
-import IndexPage from '~/pages/index.vue';
+import WorkspaceShell from '~/components/workspace/WorkspaceShell.vue';
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(body), {
@@ -12,8 +13,30 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
   });
 }
 
-describe('index page', () => {
-  it('renders the workspace shell, explores notes, deletes a note, and loads a new chat-created note', async () => {
+async function mountWorkspaceShell() {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', redirect: '/chat' },
+      { path: '/chat', component: { template: '<div />' } },
+      { path: '/explore', component: { template: '<div />' } }
+    ]
+  });
+
+  await router.push('/chat');
+  await router.isReady();
+
+  const wrapper = mount(WorkspaceShell, {
+    global: {
+      plugins: [router]
+    }
+  });
+
+  return { router, wrapper };
+}
+
+describe('workspace shell', () => {
+  it('navigates between chat and explore routes while keeping chat state alive', async () => {
     let notesListCount = 0;
     let sessionLocked = false;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -155,18 +178,21 @@ describe('index page', () => {
     vi.stubGlobal('fetch', fetchMock);
     vi.stubGlobal('confirm', vi.fn(() => true));
 
-    const wrapper = mount(IndexPage);
+    const { router, wrapper } = await mountWorkspaceShell();
     await flushPromises();
 
     expect(wrapper.text()).toContain('Work Notes');
     expect(wrapper.text()).toContain('Explore');
+    expect(router.currentRoute.value.path).toBe('/chat');
+    expect(wrapper.find('.notes-tree').exists()).toBe(false);
     expect(wrapper.text()).toContain('Sprint plan');
     expect(wrapper.text()).toContain('Outline milestones');
     expect(wrapper.find('.delete-button').exists()).toBe(false);
 
-    await wrapper.get('button.toggle-button').trigger('click');
+    await wrapper.get('a.toggle-button').trigger('click');
     await flushPromises();
 
+    expect(router.currentRoute.value.path).toBe('/explore');
     expect(wrapper.text()).toContain('Chat');
     expect(wrapper.find('.notes-tree').exists()).toBe(true);
     expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode off');
@@ -191,8 +217,11 @@ describe('index page', () => {
     expect(wrapper.find('.tree-item').text()).toContain('Sprint plan');
     expect(wrapper.find('.note-meta h3').text()).toBe('Sprint plan');
 
-    await wrapper.get('button.toggle-button').trigger('click');
+    await wrapper.get('a.toggle-button').trigger('click');
     await flushPromises();
+
+    expect(router.currentRoute.value.path).toBe('/chat');
+    expect(wrapper.find('.notes-tree').exists()).toBe(false);
 
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('form.composer').trigger('submit');
@@ -205,9 +234,10 @@ describe('index page', () => {
     expect(wrapper.text()).toContain('Sprint plan');
     expect(wrapper.get('.note-dump-indicator').text()).toBe('note dump mode on');
 
-    await wrapper.get('button.toggle-button').trigger('click');
+    await wrapper.get('a.toggle-button').trigger('click');
     await flushPromises();
 
+    expect(router.currentRoute.value.path).toBe('/explore');
     expect(wrapper.findAll('.tree-item')[0].text()).toContain('Sprint plan refined');
     expect(wrapper.find('.note-meta h3').text()).toBe('Sprint plan refined');
     expect(wrapper.find('.markdown-body h1').text()).toBe('Sprint plan');
@@ -263,11 +293,16 @@ describe('index page', () => {
 
     vi.stubGlobal('fetch', fetchMock);
 
-    const wrapper = mount(IndexPage);
+    const { router, wrapper } = await mountWorkspaceShell();
     await flushPromises();
 
-    await wrapper.get('button.toggle-button').trigger('click');
+    await wrapper.get('a.toggle-button').trigger('click');
     await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/explore');
+
+    await wrapper.get('a.toggle-button').trigger('click');
+    await flushPromises();
+    expect(router.currentRoute.value.path).toBe('/chat');
 
     await wrapper.get('#chat-draft').setValue('Open the retro note.');
     await wrapper.get('form.composer').trigger('submit');
@@ -275,9 +310,9 @@ describe('index page', () => {
 
     expect(wrapper.text()).toContain('I opened the retro note.');
 
-    await wrapper.get('button.toggle-button').trigger('click');
+    await wrapper.get('a.toggle-button').trigger('click');
     await flushPromises();
-
+    expect(router.currentRoute.value.path).toBe('/explore');
     expect(wrapper.find('.note-meta h3').text()).toBe('Retro');
     expect(wrapper.find('.markdown-body h1').text()).toBe('Retro');
   });
