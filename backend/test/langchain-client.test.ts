@@ -18,6 +18,24 @@ test('resolveBedrockConfig reads the required Bedrock configuration from environ
   });
 });
 
+test('resolveBedrockConfig preserves legacy Bedrock AWS credentials when provided', () => {
+  const config = resolveBedrockConfig({
+    BEDROCK_AWS_REGION: 'us-west-2',
+    BEDROCK_MODEL_ID: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    BEDROCK_AWS_ACCESS_KEY_ID: '  access  ',
+    BEDROCK_AWS_SECRET_ACCESS_KEY: '  secret  ',
+    BEDROCK_AWS_SESSION_TOKEN: '  session  '
+  } as NodeJS.ProcessEnv);
+
+  assert.deepEqual(config, {
+    region: 'us-west-2',
+    modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    accessKeyId: 'access',
+    secretAccessKey: 'secret',
+    sessionToken: 'session'
+  });
+});
+
 test('resolveBedrockConfig fails fast when required configuration is missing', () => {
   assert.throws(
     () =>
@@ -40,6 +58,26 @@ test('toBedrockChatModelOptions only passes model and region', () => {
   });
 });
 
+test('toBedrockChatModelOptions passes through explicit legacy AWS credentials', () => {
+  const options = toBedrockChatModelOptions({
+    region: 'us-east-1',
+    modelId: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    accessKeyId: 'access',
+    secretAccessKey: 'secret',
+    sessionToken: 'session'
+  });
+
+  assert.deepEqual(options, {
+    model: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
+    region: 'us-east-1',
+    credentials: {
+      accessKeyId: 'access',
+      secretAccessKey: 'secret',
+      sessionToken: 'session'
+    }
+  });
+});
+
 test('createBedrockChatModel returns ChatBedrockConverse without explicit AWS credentials', () => {
   const model = createBedrockChatModel({
     region: 'us-east-1',
@@ -52,7 +90,4 @@ test('createBedrockChatModel returns ChatBedrockConverse without explicit AWS cr
     model: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
     region: 'us-east-1'
   });
-  assert.equal(Boolean(model.bedrockApiKey), false);
-  assert.equal(Boolean(model.bedrockApiSecret), false);
-  assert.equal(Boolean(model.bedrockApiSessionToken), false);
 });

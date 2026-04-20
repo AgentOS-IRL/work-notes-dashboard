@@ -32,8 +32,9 @@ Minimal monorepo with:
 - `FRONTEND_BASE_PATH` lets the backend mount the frontend under a subpath
 - `SQLITE_DB_PATH` overrides the SQLite database file path
 - `BEDROCK_AWS_REGION` sets the AWS region for the LangChain Bedrock client
+- `BEDROCK_AWS_ACCESS_KEY_ID`, `BEDROCK_AWS_SECRET_ACCESS_KEY`, and optional `BEDROCK_AWS_SESSION_TOKEN` preserve compatibility with existing Bedrock deployments that still use the legacy env var names
 - `BEDROCK_MODEL_ID` selects the Bedrock model used by the LangChain client
-- The backend relies on the AWS SDK for JavaScript default credential provider chain, so it does not need app-managed Bedrock credential variables
+- If the legacy Bedrock credential variables are omitted, the backend relies on the AWS SDK for JavaScript default credential provider chain
 
 ## SQLite Migrations
 
