@@ -3,6 +3,15 @@ import type { Note } from '../notes-repository';
 import { createNoteTools } from './note-tools';
 import { createDefaultChatModel } from './index';
 import type { NotesRepository } from '../notes-repository';
+import { CallbackHandler } from "@langfuse/langchain";
+import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
+
+// Initialize the Langfuse CallbackHandler
+const langfuseHandler = new CallbackHandler({
+  sessionId: "user-session-123",
+  userId: "user-abc",
+  tags: ["langchain-test"],
+});
 
 export type ChatRole = 'user' | 'assistant';
 export type ChatToolCall = Record<string, unknown>;
@@ -70,7 +79,7 @@ const LOCKED_SYSTEM_INSTRUCTION = [
   'The conversation is locked to a single note, so treat that note as the only editable target.',
   'You may only use update_note.',
   'Do not inspect, create, open, or switch to other notes.',
-  'After each user message, update the locked note directly if a change is needed, then briefly tell the user what you changed.'
+  'After each user message, reorganize and update the note. Such that overall structure is maintained of the note in markdown format keep improving and refining the note. Do not add any conversational filler or pleasantries.'
 ].join(' ');
 
 function buildSystemInstruction(lockedNoteId: number | null) {
@@ -156,16 +165,16 @@ function collectOpenedNoteIds(toolName: string, result: ToolResult) {
   return [];
 }
 
-function buildOpenNoteAssistantMessage(openedNoteIds: number[]) {
-  if (openedNoteIds.length === 0) {
-    return 'Opened the note.';
+function buildOpenNoteAssistantMessage(Ids: number[], pre_fix: string) {
+  if (Ids.length === 0) {
+    return `${pre_fix} the note.`;
   }
 
-  if (openedNoteIds.length === 1) {
-    return `Opened note ${openedNoteIds[0]}.`;
+  if (Ids.length === 1) {
+    return `${pre_fix} note ${Ids[0]}.`;
   }
 
-  return `Opened notes ${openedNoteIds.join(', ')}.`;
+  return `${pre_fix} notes ${Ids.join(', ')}.`;
 }
 
 function isNoteToolName(toolName: string): toolName is 'create_note' | 'get_note' | 'list_notes' | 'open_note' | 'read_note' | 'update_note' {
@@ -224,12 +233,12 @@ export function createConversationService(options: {
           lockedNoteId
             ? [tools.updateNoteTool]
             : [
-                tools.createNoteTool,
-                tools.readNoteTool,
-                tools.openNoteTool,
-                tools.listNotesTool,
-                tools.updateNoteTool
-              ]
+              tools.createNoteTool,
+              tools.readNoteTool,
+              tools.openNoteTool,
+              tools.listNotesTool,
+              tools.updateNoteTool
+            ]
         );
         const assistantReply = await modelWithTools.invoke(messages);
         messages = [...messages, assistantReply];
@@ -241,24 +250,6 @@ export function createConversationService(options: {
         if (assistantToolCalls.length === 0) {
           const reply = extractAssistantText(assistantReply);
           if (!reply) {
-            if (allowEmptyReplyForOpenNote) {
-              return {
-                assistantMessage: {
-                  role: 'assistant',
-                  content: buildOpenNoteAssistantMessage([...openedNoteIds])
-                },
-                toolCalls,
-                createdNoteIds: [...createdNoteIds],
-                updatedNoteIds: [...updatedNoteIds],
-                changedNoteIds: [...changedNoteIds],
-                openedNoteIds: [...openedNoteIds],
-                notesChanged: createdNoteIds.size > 0 || updatedNoteIds.size > 0 || changedNoteIds.size > 0
-                  ? true
-                  : false,
-                ...(lockedNoteId == null ? {} : { lockedNoteId })
-              };
-            }
-
             throw new Error(
               `The assistant returned an empty response. ${JSON.stringify({
                 content: assistantReply.content,
@@ -351,10 +342,45 @@ export function createConversationService(options: {
 
         allowEmptyReplyForOpenNote =
           assistantToolCalls.length > 0 &&
-          assistantToolCallNames.every((toolName) => toolName === 'open_note');
+          (assistantToolCallNames.every((toolName) => toolName === 'open_note') ||
+            assistantToolCallNames.every((toolName) => toolName === 'create_note') ||
+            assistantToolCallNames.every((toolName) => toolName === 'update_note'));
+        if (allowEmptyReplyForOpenNote) {
+          let pre_fix = "Opened"
+          let Ids = [...openedNoteIds]
+          switch (assistantToolCallNames[0]) {
+            case 'open_note':
+              pre_fix = "Opened"
+              Ids = [...openedNoteIds]
+              break;
+            case 'create_note':
+              pre_fix = "Created"
+              Ids = [...createdNoteIds]
+              break;
+            case 'update_note':
+              pre_fix = "Updated"
+              Ids = [...updatedNoteIds]
+              break;
+          }
+          return {
+            assistantMessage: {
+              role: 'assistant',
+              content: buildOpenNoteAssistantMessage([...Ids], pre_fix)
+            },
+            toolCalls,
+            createdNoteIds: [...createdNoteIds],
+            updatedNoteIds: [...updatedNoteIds],
+            changedNoteIds: [...changedNoteIds],
+            openedNoteIds: [...openedNoteIds],
+            notesChanged: createdNoteIds.size > 0 || updatedNoteIds.size > 0 || changedNoteIds.size > 0
+              ? true
+              : false,
+            ...(lockedNoteId == null ? {} : { lockedNoteId })
+          };
+        }
       }
 
-      throw new Error('The conversation did not finish after several tool calls.');
+      throw new Error(`The conversation did not finish after several tool calls. - ${JSON.stringify(toolsCalled)}`);
     }
   };
 }
