@@ -161,7 +161,7 @@ onMounted(() => {
       </header>
 
       <div class="workspace" :class="{ tasks: isTasksMode }">
-        <aside v-if="!isTasksMode" class="left-rail">
+        <aside v-show="!isTasksMode" class="left-rail">
           <ChatPanel v-show="currentWorkspaceMode === 'chat-first'" @notes-activity="handleNotesActivity" />
 
           <NotesTree
