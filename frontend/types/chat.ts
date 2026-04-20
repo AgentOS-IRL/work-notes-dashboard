@@ -48,6 +48,14 @@ export interface ChatSessionDetailResponse {
   messages: ChatMessage[];
 }
 
+export interface ChatSessionRenameRequest {
+  name: string;
+}
+
+export interface ChatSessionRenameResponse {
+  session: ChatSessionDetail;
+}
+
 export interface ChatResponse {
   assistantMessage: ChatTurn;
   toolCalls: ChatToolCall[];

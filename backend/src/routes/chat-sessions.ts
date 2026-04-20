@@ -5,6 +5,9 @@ import { NotFoundError, ValidationError } from '../notes-repository';
 
 const sessionIdSchema = z.string().trim().min(1);
 const sessionLimitSchema = z.coerce.number().int().positive().max(100).default(20);
+const sessionRenameSchema = z.object({
+  name: z.string().trim().min(1)
+});
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Request failed.';
@@ -63,6 +66,37 @@ export function createChatSessionsRouter(repository: ChatSessionRepository) {
       res.json({
         session,
         messages: repository.getTranscript(parsed.data)
+      });
+    } catch (error) {
+      if (!sendError(res, error)) {
+        res.status(500).json({ error: getErrorMessage(error) });
+      }
+    }
+  });
+
+  router.patch('/:sessionId', (req, res) => {
+    const parsedSessionId = sessionIdSchema.safeParse(req.params.sessionId);
+    if (!parsedSessionId.success) {
+      res.status(400).json({
+        error: 'A valid session id is required.',
+        issues: parsedSessionId.error.issues
+      });
+      return;
+    }
+
+    const parsedBody = sessionRenameSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      res.status(400).json({
+        error: 'A valid session name is required.',
+        issues: parsedBody.error.issues
+      });
+      return;
+    }
+
+    try {
+      const session = repository.updateSessionName(parsedSessionId.data, parsedBody.data.name);
+      res.json({
+        session
       });
     } catch (error) {
       if (!sendError(res, error)) {

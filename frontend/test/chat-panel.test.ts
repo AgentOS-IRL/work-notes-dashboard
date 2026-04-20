@@ -104,6 +104,8 @@ describe('ChatPanel', () => {
     expect(wrapper.find('.prompt-row').exists()).toBe(false);
     expect(wrapper.findAll('.prompt-chip')).toHaveLength(0);
     expect(wrapper.find('form.composer').exists()).toBe(true);
+    expect(wrapper.get('button.rename-button').text()).toBe('Rename');
+    expect(wrapper.get('button.rename-button').attributes('disabled')).toBeDefined();
     await wrapper.get('#chat-draft').setValue('Refine the sprint plan.');
     await wrapper.get('#chat-draft').trigger('keydown', { key: 'Enter' });
     await flushPromises();
@@ -136,6 +138,151 @@ describe('ChatPanel', () => {
       ]
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('opens the rename modal and updates the session label after saving', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Named session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            },
+            {
+              id: 'session-2',
+              name: null,
+              createdAt: 1_700_000_100_000,
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          session: {
+            id: 'session-2',
+            name: null,
+            createdAt: 1_700_000_100_000,
+            lastActivityAt: 1_700_000_100_000,
+            metadata: {
+              created: [],
+              updated: [],
+              lockedNoteId: null
+            }
+          },
+          messages: []
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Named session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            },
+            {
+              id: 'session-2',
+              name: null,
+              createdAt: 1_700_000_100_000,
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          session: {
+            id: 'session-2',
+            name: 'Renamed session',
+            createdAt: 1_700_000_100_000,
+            lastActivityAt: 1_700_000_100_000,
+            metadata: {
+              created: [],
+              updated: [],
+              lockedNoteId: null
+            }
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Named session',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            },
+            {
+              id: 'session-2',
+              name: 'Renamed session',
+              createdAt: 1_700_000_100_000,
+              lastActivityAt: 1_700_000_100_000,
+              metadata: {
+                created: [],
+                updated: [],
+                lockedNoteId: null
+              }
+            }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const wrapper = mount(ChatPanel);
+    await flushPromises();
+
+    expect(wrapper.get('button.rename-button').attributes('disabled')).toBeDefined();
+
+    await wrapper.get('select').setValue('session-2');
+    await flushPromises();
+
+    expect(wrapper.get('button.rename-button').attributes('disabled')).toBeUndefined();
+
+    await wrapper.get('button.rename-button').trigger('click');
+    expect(wrapper.get('.rename-modal').exists()).toBe(true);
+    expect((wrapper.get('#session-rename-input').element as HTMLInputElement).value).toBe('');
+
+    await wrapper.get('#session-rename-input').setValue('Renamed session');
+    await wrapper.get('.rename-modal form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.get('select').element).toBeDefined();
+    expect(wrapper.findAll('option')[2].text()).toBe('Renamed session');
+    expect(wrapper.vm.sessionId).toBe('session-2');
+    expect(wrapper.find('.rename-modal').exists()).toBe(false);
   });
 
   it('renders assistant tool calls beneath the message content', async () => {

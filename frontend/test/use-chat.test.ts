@@ -65,6 +65,94 @@ describe('useChat', () => {
     ).toMatch(/:/);
   });
 
+  it('renames a persisted session, refreshes the list, and preserves active state', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: null,
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [1],
+                updated: [1],
+                lockedNoteId: 2
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          session: {
+            id: 'session-1',
+            name: 'Updated session name',
+            createdAt: 1_700_000_000_000,
+            lastActivityAt: 1_700_000_000_000,
+            metadata: {
+              created: [1],
+              updated: [1],
+              lockedNoteId: 2
+            }
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Updated session name',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [1],
+                updated: [1],
+                lockedNoteId: 2
+              }
+            }
+          ]
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat();
+    chat.sessionId.value = 'session-1';
+    chat.selectedSessionId.value = 'session-1';
+
+    await chat.loadSessions();
+
+    const previousMetadata = { ...chat.activeSessionMetadata.value };
+    await chat.renameSession('session-1', '  Updated session name  ');
+
+    const patchCall = fetchMock.mock.calls.find(
+      ([url, init]) => url === '/api/chat/sessions/session-1' && (init as RequestInit | undefined)?.method === 'PATCH'
+    );
+    const requestBody = JSON.parse(patchCall?.[1]?.body as string) as { name: string };
+
+    expect(requestBody.name).toBe('Updated session name');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/chat/sessions/session-1',
+      expect.objectContaining({
+        method: 'PATCH'
+      })
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(chat.sessions.value[0]).toMatchObject({
+      id: 'session-1',
+      name: 'Updated session name',
+      label: 'Updated session name'
+    });
+    expect(chat.sessionId.value).toBe('session-1');
+    expect(chat.selectedSessionId.value).toBe('session-1');
+    expect(chat.activeSessionMetadata.value).toEqual(previousMetadata);
+    expect(chat.errorMessage.value).toBe('');
+  });
+
   it('sends the raw prompt when note dump mode is off', async () => {
     const fetchMock = vi
       .fn()
@@ -105,6 +193,49 @@ describe('useChat', () => {
       content: 'Capture the meeting notes.',
       toolCalls: []
     });
+  });
+
+  it('surfaces rename failures without disturbing the active session state', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          sessions: [
+            {
+              id: 'session-1',
+              name: 'Weekly update',
+              createdAt: 1_700_000_000_000,
+              lastActivityAt: 1_700_000_000_000,
+              metadata: {
+                created: [1],
+                updated: [1],
+                lockedNoteId: 2
+              }
+            }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const chat = useChat();
+    chat.sessionId.value = 'session-1';
+    chat.selectedSessionId.value = 'session-1';
+
+    await chat.loadSessions();
+
+    const previousMetadata = { ...chat.activeSessionMetadata.value };
+
+    await expect(chat.renameSession('session-1', 'Updated session name')).rejects.toThrow(
+      'Request failed with status 503'
+    );
+
+    expect(chat.sessionId.value).toBe('session-1');
+    expect(chat.selectedSessionId.value).toBe('session-1');
+    expect(chat.activeSessionMetadata.value).toEqual(previousMetadata);
+    expect(chat.errorMessage.value).toBe('Request failed with status 503');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('restores a loaded session transcript and continues sending from it', async () => {
