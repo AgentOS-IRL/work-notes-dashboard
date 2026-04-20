@@ -1,8 +1,7 @@
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
-import type { Note } from '../notes-repository';
+import { NotFoundError, type Note, type NotesRepository } from '../notes-repository';
 import { createNoteTools } from './note-tools';
 import { createDefaultChatModel } from './index';
-import type { NotesRepository } from '../notes-repository';
 
 export type ChatRole = 'user' | 'assistant';
 export type ChatToolCall = Record<string, unknown>;
@@ -67,9 +66,9 @@ const UNLOCKED_SYSTEM_INSTRUCTION = [
 
 const LOCKED_SYSTEM_INSTRUCTION = [
   'You are a work notes assistant inside a split-view dashboard.',
-  'The conversation is locked to a single note, so treat that note as the only editable target.',
-  'You may only use update_note.',
-  'Do not inspect, create, open, or switch to other notes.',
+  'The conversation is locked to a single note, so treat that note as the active editing target.',
+  'You will also receive the current note body as internal context.',
+  'Use the available note tools as needed to inspect, update, open, create, or list notes.',
   'After each user message, reorganize and update the note. Such that overall structure is maintained of the note in markdown format keep improving and refining the note. Do not add any conversational filler or pleasantries.'
 ].join(' ');
 
@@ -88,6 +87,18 @@ function refreshSystemMessage(messages: BaseMessage[], lockedNoteId: number | nu
   }
 
   return [new SystemMessage(systemInstruction), ...messages.slice(1)];
+}
+
+function buildLockedNoteContextMessage(note: Note) {
+  return new HumanMessage(
+    [
+      'Current locked note context:',
+      `Note id: ${note.id}`,
+      `Title: ${note.title}`,
+      'Content:',
+      note.content
+    ].join('\n')
+  );
 }
 
 function toBaseMessages(messages: ChatTurn[]): BaseMessage[] {
@@ -205,17 +216,23 @@ export function createConversationService(options: {
     async replyToConversation(request: ChatRequest): Promise<ChatResponse> {
       const requestLockedNoteId = request.lockedNoteId ?? null;
       let responseLockedNoteId = requestLockedNoteId;
-      let tools = createNoteTools(
-        options.repository,
-        {
-          sessionId: request.sessionId
-        },
-        {
-          lockedNoteId: requestLockedNoteId
-        }
-      );
+      const tools = createNoteTools(options.repository, {
+        sessionId: request.sessionId
+      });
+      const lockedNoteMessages =
+        requestLockedNoteId == null
+          ? []
+          : (() => {
+              const lockedNote = options.repository.getNoteById(requestLockedNoteId);
+              if (!lockedNote) {
+                throw new NotFoundError(`Note ${requestLockedNoteId} was not found.`);
+              }
+
+              return [buildLockedNoteContextMessage(lockedNote)];
+            })();
       const baseMessages = [
         new SystemMessage(buildSystemInstruction(requestLockedNoteId)),
+        ...lockedNoteMessages,
         ...toBaseMessages(request.messages)
       ];
       const createdNoteIds = new Set<number>();
@@ -228,17 +245,13 @@ export function createConversationService(options: {
 
       for (let loopIndex = 0; loopIndex < MAX_TOOL_LOOPS; loopIndex += 1) {
         messages = refreshSystemMessage(messages, requestLockedNoteId);
-        const modelWithTools = model.bindTools(
-          requestLockedNoteId
-            ? [tools.updateNoteTool]
-            : [
-              tools.createNoteTool,
-              tools.readNoteTool,
-              tools.openNoteTool,
-              tools.listNotesTool,
-              tools.updateNoteTool
-            ]
-        );
+        const modelWithTools = model.bindTools([
+          tools.createNoteTool,
+          tools.readNoteTool,
+          tools.openNoteTool,
+          tools.listNotesTool,
+          tools.updateNoteTool
+        ]);
         const assistantReply = await modelWithTools.invoke(messages);
         messages = [...messages, assistantReply];
 
@@ -278,18 +291,6 @@ export function createConversationService(options: {
 
         for (const toolCall of assistantToolCalls) {
           const toolName = toolCall.name;
-          if (requestLockedNoteId && toolName !== 'update_note') {
-            messages = [
-              ...messages,
-              new ToolMessage(
-                'Tool access is locked to update_note after this session has been locked.',
-                toolCall.id ?? `${toolName}-${loopIndex}`,
-                toolName
-              )
-            ];
-            continue;
-          }
-
           if (!isNoteToolName(toolName)) {
             messages = [
               ...messages,

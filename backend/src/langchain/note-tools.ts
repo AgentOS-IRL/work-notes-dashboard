@@ -14,10 +14,6 @@ export interface NoteToolContext {
   sessionId?: string;
 }
 
-export interface NoteToolOptions {
-  lockedNoteId?: number | null;
-}
-
 const noteIdSchema = z.object({
   id: z.number().int().positive().describe('The note id.')
 });
@@ -26,17 +22,6 @@ const noteInputSchema = z.object({
   title: z.string().trim().min(1).describe('The note title.'),
   content: z.string().describe('The note content.')
 });
-
-function normalizeLockedNoteId(value: unknown) {
-  const numericValue =
-    typeof value === 'number'
-      ? value
-      : typeof value === 'string'
-        ? Number(value.trim())
-        : Number.NaN;
-
-  return Number.isInteger(numericValue) && numericValue > 0 ? numericValue : null;
-}
 
 function asNote(note: Note | null) {
   if (!note) {
@@ -66,10 +51,8 @@ function createReadNoteTool(
 
 export function createNoteTools(
   repository: NoteToolRepository,
-  context: NoteToolContext = {},
-  options: NoteToolOptions = {}
+  context: NoteToolContext = {}
 ) {
-  const lockedNoteId = normalizeLockedNoteId(options.lockedNoteId);
   const createNoteTool = tool(
     async ({ title, content }) => {
       const note =
@@ -133,21 +116,18 @@ export function createNoteTools(
   );
 
   const updateNoteTool = tool(
-    async (input: { id?: number; title: string; content: string }) => {
+    async (input: { id: number; title: string; content: string }) => {
       const { id, title, content } = input;
-      const targetNoteId = lockedNoteId ?? id;
       const note =
         context.sessionId && repository.updateNoteForSession
-          ? repository.updateNoteForSession(targetNoteId, context.sessionId, { title, content })
-          : repository.updateNote(targetNoteId, { title, content });
+          ? repository.updateNoteForSession(id, context.sessionId, { title, content })
+          : repository.updateNote(id, { title, content });
       return { note };
     },
     {
       name: 'update_note',
-      description: lockedNoteId
-        ? `Update the locked note ${lockedNoteId} in the SQLite-backed notes store.`
-        : 'Update an existing note in the SQLite-backed notes store.',
-      schema: lockedNoteId ? noteInputSchema : noteIdSchema.extend(noteInputSchema.shape)
+      description: 'Update an existing note in the SQLite-backed notes store.',
+      schema: noteIdSchema.extend(noteInputSchema.shape)
     }
   );
 

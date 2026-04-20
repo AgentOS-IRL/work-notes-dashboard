@@ -390,7 +390,16 @@ test('conversation service starts in locked mode when the session is already loc
           invocationCount += 1;
 
           if (invocationCount === 1) {
-            assert.deepEqual(messageTypes(messages), ['system', 'human']);
+            assert.deepEqual(messageTypes(messages), ['system', 'human', 'human']);
+            assert.match(String(messages[0].content), /The conversation is locked to a single note/);
+            assert.match(
+              String(messages[0].content),
+              /You will also receive the current note body as internal context\./
+            );
+            assert.match(String(messages[1].content), /Current locked note context:/);
+            assert.match(String(messages[1].content), /Title: Locked note/);
+            assert.match(String(messages[1].content), /Draft content\./);
+            assert.equal(String(messages[2].content), 'Refine the locked note.');
 
             return new AIMessage({
               content: 'I will update the locked note.',
@@ -399,7 +408,7 @@ test('conversation service starts in locked mode when the session is already loc
                   id: 'call-1',
                   name: 'update_note',
                   args: {
-                    id: 2,
+                    id: 1,
                     title: 'Locked note refined',
                     content: 'Refined content.'
                   }
@@ -408,7 +417,7 @@ test('conversation service starts in locked mode when the session is already loc
             });
           }
 
-          assert.deepEqual(messageTypes(messages), ['system', 'human', 'ai', 'tool']);
+          assert.deepEqual(messageTypes(messages), ['system', 'human', 'human', 'ai', 'tool']);
           return new AIMessage({
             content: 'Updated the locked note.'
           });
@@ -430,18 +439,27 @@ test('conversation service starts in locked mode when the session is already loc
       ]
     });
 
-    assert.deepEqual(bindToolsCalls, [['update_note']]);
+    assert.deepEqual(bindToolsCalls, [[
+      'create_note',
+      'read_note',
+      'open_note',
+      'list_notes',
+      'update_note'
+    ]]);
     assert.equal(invocationMessages.length, 1);
     assert.match(
       systemMessageContent(invocationMessages[0]),
-      /The conversation is locked to a single note, so treat that note as the only editable target\./
+      /The conversation is locked to a single note, so treat that note as the active editing target\./
     );
-    assert.match(systemMessageContent(invocationMessages[0]), /You may only use update_note\./);
+    assert.match(
+      systemMessageContent(invocationMessages[0]),
+      /You will also receive the current note body as internal context\./
+    );
     assert.match(
       systemMessageContent(invocationMessages[0]),
       /After each user message, reorganize and update the note\./i
     );
-    assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human']);
+    assert.deepEqual(messageTypes(invocationMessages[0]), ['system', 'human', 'human']);
     assert.deepEqual(response.assistantMessage, {
       role: 'assistant',
       content: 'Updated note 1.'
@@ -450,6 +468,42 @@ test('conversation service starts in locked mode when the session is already loc
     assert.deepEqual(response.updatedNoteIds, [1]);
     assert.deepEqual(repository.getNoteById(1)?.title, 'Locked note refined');
     assert.deepEqual(repository.getNoteById(2)?.title, 'Other note');
+  } finally {
+    database.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('conversation service fails when the locked note no longer exists', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-conversation-locked-missing-'));
+  const databasePath = path.join(tempRoot, 'notes.sqlite');
+  const database = openSqliteDatabase(databasePath);
+  initializeSqliteDatabase(database);
+  const repository = new NotesRepository(database);
+
+  const model = {
+    bindTools() {
+      throw new Error('should not bind tools when the locked note is missing');
+    }
+  };
+
+  try {
+    const service = createConversationService({ repository, model });
+
+    await assert.rejects(
+      () =>
+        service.replyToConversation({
+          sessionId: 'session-locked-missing',
+          lockedNoteId: 1,
+          messages: [
+            {
+              role: 'user',
+              content: 'Refine the locked note.'
+            }
+          ]
+        }),
+      /Note 1 was not found\./
+    );
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });

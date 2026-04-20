@@ -218,7 +218,7 @@ test('listNotesTool returns an empty list for an empty repository', async () => 
   }
 });
 
-test('locked update_note ignores caller ids and updates the captured note', async () => {
+test('update_note still uses the caller id for updates', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'work-notes-dashboard-locked-update-'));
   const databasePath = path.join(tempRoot, 'notes.sqlite');
   const database = openSqliteDatabase(databasePath);
@@ -234,21 +234,21 @@ test('locked update_note ignores caller ids and updates the captured note', asyn
       title: 'Other note',
       content: 'Original other body'
     });
-    const tools = createNoteTools(repository, { sessionId: 'session-locked' }, { lockedNoteId: lockedNote.id });
+    const tools = createNoteTools(repository, { sessionId: 'session-locked' });
 
     const updated = await tools.updateNoteTool.invoke({
       id: otherNote.id,
-      title: 'Locked note updated',
-      content: 'Updated locked body'
+      title: 'Other note updated',
+      content: 'Updated other body'
     });
 
-    assert.equal(updated.note.id, lockedNote.id);
+    assert.equal(updated.note.id, otherNote.id);
     assert.deepEqual(updated.note.metadata, {
       created: '',
       updated: ['session-locked']
     });
-    assert.equal(repository.getNoteById(lockedNote.id)?.title, 'Locked note updated');
-    assert.equal(repository.getNoteById(otherNote.id)?.title, 'Other note');
+    assert.equal(repository.getNoteById(lockedNote.id)?.title, 'Locked note');
+    assert.equal(repository.getNoteById(otherNote.id)?.title, 'Other note updated');
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
