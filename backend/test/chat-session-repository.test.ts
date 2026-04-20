@@ -40,7 +40,8 @@ test('initializeSqliteDatabase applies the chat schema migrations', () => {
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
         '005_add_chat_session_tool_calls.sql',
-        '006_add_chat_message_tool_calls.sql'
+        '006_add_chat_message_tool_calls.sql',
+        '007_add_tasks.sql'
       ]
     );
 
@@ -159,7 +160,8 @@ test('initializeSqliteDatabase migrates legacy chat tables without timestamp col
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
         '005_add_chat_session_tool_calls.sql',
-        '006_add_chat_message_tool_calls.sql'
+        '006_add_chat_message_tool_calls.sql',
+        '007_add_tasks.sql'
       ]
     );
 

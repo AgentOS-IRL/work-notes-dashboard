@@ -25,7 +25,8 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
         '005_add_chat_session_tool_calls.sql',
-        '006_add_chat_message_tool_calls.sql'
+        '006_add_chat_message_tool_calls.sql',
+        '007_add_tasks.sql'
       ]
     );
 
@@ -77,6 +78,16 @@ test('initializeSqliteDatabase applies migrations to a fresh database', () => {
       'createdAt',
       'toolCalls'
     ]);
+
+    const taskColumns = database
+      .prepare('PRAGMA table_info(tasks)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(taskColumns.map((column) => column.name), [
+      'id',
+      'name',
+      'status',
+      'note_ids'
+    ]);
   } finally {
     database.close();
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -106,7 +117,8 @@ test('initializeSqliteDatabase does not reapply migrations on a second startup',
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
         '005_add_chat_session_tool_calls.sql',
-        '006_add_chat_message_tool_calls.sql'
+        '006_add_chat_message_tool_calls.sql',
+        '007_add_tasks.sql'
       ]
     );
     assert.deepEqual(
@@ -189,6 +201,16 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
       'content',
       'metadata'
     ]);
+
+    const taskColumns = database
+      .prepare('PRAGMA table_info(tasks)')
+      .all() as Array<{ name: string }>;
+    assert.deepEqual(taskColumns.map((column) => column.name), [
+      'id',
+      'name',
+      'status',
+      'note_ids'
+    ]);
     assert.deepEqual(
       database
         .prepare('SELECT name FROM _migrations ORDER BY id')
@@ -200,7 +222,8 @@ test('initializeSqliteDatabase repairs a partially migrated timestamp schema', (
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
         '005_add_chat_session_tool_calls.sql',
-        '006_add_chat_message_tool_calls.sql'
+        '006_add_chat_message_tool_calls.sql',
+        '007_add_tasks.sql'
       ]
     );
 
@@ -284,7 +307,8 @@ test('initializeSqliteDatabase repairs a partially migrated chat session metadat
         '003_add_note_metadata.sql',
         '004_add_chat_session_metadata.sql',
         '005_add_chat_session_tool_calls.sql',
-        '006_add_chat_message_tool_calls.sql'
+        '006_add_chat_message_tool_calls.sql',
+        '007_add_tasks.sql'
       ]
     );
 
