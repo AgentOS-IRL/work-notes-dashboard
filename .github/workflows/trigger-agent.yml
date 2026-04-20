@@ -43,6 +43,6 @@ jobs:
             }')
 
           echo "Triggering agent for PR: $PR_NUMBER"
-          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" PUBLISH "$REDIS_CHANNEL" "$TRIGGER_KEY"
-          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" RPUSH "$TRIGGER_KEY" "$PAYLOAD"
-          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" EXPIRE "$TRIGGER_KEY" 1800
+          redis-cli -h 192.168.8.129 -p 6379 PUBLISH "agentos/blazing-collie/trigger" "agentos/pr/merge"
+          redis-cli -h 192.168.8.129 -p 6379 RPUSH "agentos/pr/merge" "$PAYLOAD"
+          redis-cli -h 192.168.8.129 -p 6379 EXPIRE "agentos/pr/merge" 1800
