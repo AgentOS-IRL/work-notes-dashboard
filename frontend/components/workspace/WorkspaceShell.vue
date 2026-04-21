@@ -74,6 +74,14 @@ function handleNotesActivity(activity: ChatNotesActivity) {
   });
 }
 
+function handleSessionLockedNote(payload: { lockedNoteId: number | null }) {
+  if (payload.lockedNoteId == null) {
+    return;
+  }
+
+  void loadNotes({ focusNoteIds: [payload.lockedNoteId] });
+}
+
 function handleSelectNote(noteId: number) {
   selectNoteById(noteId);
 }
@@ -162,7 +170,11 @@ onMounted(() => {
 
       <div class="workspace" :class="{ tasks: isTasksMode }">
         <aside v-show="!isTasksMode" class="left-rail">
-          <ChatPanel v-show="currentWorkspaceMode === 'chat-first'" @notes-activity="handleNotesActivity" />
+          <ChatPanel
+            v-show="currentWorkspaceMode === 'chat-first'"
+            @notes-activity="handleNotesActivity"
+            @session-locked-note="handleSessionLockedNote"
+          />
 
           <NotesTree
             v-if="isExploreMode"

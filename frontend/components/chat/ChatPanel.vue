@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import ToolCallList from '~/components/chat/ToolCallList.vue';
 import SessionRenameModal from '~/components/chat/SessionRenameModal.vue';
 import { useChat } from '~/composables/useChat';
@@ -18,6 +18,7 @@ const emit = defineEmits<{
   (event: 'notes-changed', changedNoteIds: number[]): void;
   (event: 'note-opened', openedNoteIds: number[]): void;
   (event: 'notes-activity', activity: ChatNotesActivity): void;
+  (event: 'session-locked-note', payload: { lockedNoteId: number | null }): void;
 }>();
 
 const {
@@ -25,6 +26,7 @@ const {
   sessions,
   sessionId,
   selectedSessionId,
+  activeSessionMetadata,
   draft,
   isSending,
   isLoadingSession,
@@ -108,6 +110,14 @@ function handleRenameCancel() {
   errorMessage.value = '';
   isRenameModalOpen.value = false;
 }
+
+watch(
+  () => activeSessionMetadata.value.lockedNoteId,
+  (lockedNoteId) => {
+    emit('session-locked-note', { lockedNoteId });
+  },
+  { immediate: true }
+);
 
 onMounted(() => {
   void loadSessions();

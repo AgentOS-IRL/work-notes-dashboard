@@ -69,7 +69,8 @@ const LOCKED_SYSTEM_INSTRUCTION = [
   'The conversation is locked to a single note, so treat that note as the active editing target.',
   'You will also receive the current note body as internal context.',
   'Use the available note tools as needed to inspect, update, open, create, or list notes.',
-  'After each user message, reorganize and update the note. Such that overall structure is maintained of the note in markdown format keep improving and refining the note. Do not add any conversational filler or pleasantries.'
+  'After each user message, reorganize and update the note. Such that overall structure is maintained of the note in markdown format keep improving and refining the note. Do not add any conversational filler or pleasantries.',
+  'You can rewrite the entire note if needed to improve the overall structure and content.'
 ].join(' ');
 
 function buildSystemInstruction(lockedNoteId: number | null) {
@@ -235,7 +236,7 @@ export function createConversationService(options: {
       const baseMessages = [
         new SystemMessage(buildSystemInstruction(requestLockedNoteId)),
         ...lockedNoteMessages,
-        ...toBaseMessages(request.messages)
+        ...toBaseMessages(request.messages.slice(-1))
       ];
       const createdNoteIds = new Set<number>();
       const updatedNoteIds = new Set<number>();
